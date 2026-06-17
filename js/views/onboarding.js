@@ -150,10 +150,19 @@ export async function renderOnboarding(profileId, onComplete) {
       document.getElementById('ob-back').onclick = () => { step--; render(); };
       document.getElementById('ob-next').onclick = async () => {
         if (!data.goal) { alert('Pick a goal.'); return; }
-        data.onboardingDone = true;
-        data.createdAt = data.createdAt || new Date().toISOString();
-        await saveProfile(data);
-        onComplete(data);
+        const btn = document.getElementById('ob-next');
+        btn.textContent = 'Saving…';
+        btn.disabled = true;
+        try {
+          data.onboardingDone = true;
+          data.createdAt = data.createdAt || new Date().toISOString();
+          await saveProfile(data);
+          onComplete(data);
+        } catch(e) {
+          btn.textContent = 'Save & Start';
+          btn.disabled = false;
+          alert('Error saving profile: ' + e.message);
+        }
       };
     }
   }

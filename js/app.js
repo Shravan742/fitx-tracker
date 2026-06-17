@@ -1,12 +1,14 @@
 import { db } from './db.js';
 import { getActiveProfile, setActiveProfile, getProfile, saveProfile } from './profiles.js';
-import { renderOnboarding } from './views/onboarding.js';
-import { renderDashboard } from './views/dashboard.js';
-import { renderWorkout } from './views/workout.js';
-import { renderMeals } from './views/meals.js';
-import { renderSleep } from './views/sleep.js';
-import { renderProfile } from './views/profile.js';
 import { syncGist } from './sync.js';
+
+// Cache-bust version — forces fresh module load on every page visit
+const V = Date.now();
+
+async function loadView(name) {
+  const mod = await import(`./views/${name}.js?v=${V}`);
+  return mod;
+}
 
 const VIEWS = ['dashboard', 'workout', 'meals', 'sleep', 'profile'];
 
@@ -14,28 +16,30 @@ async function init() {
   await db.open();
 
   const profileId = getActiveProfile();
-  const profile = await getProfile(profileId);
+  const profile   = await getProfile(profileId);
 
   updateProfileBtn(profile);
 
   if (!profile || !profile.onboardingDone) {
     showView('onboarding');
+    const { renderOnboarding } = await loadView('onboarding');
     renderOnboarding(profileId, onOnboardingComplete);
     return;
   }
 
   setupNav();
   showView('dashboard');
+  const { renderDashboard } = await loadView('dashboard');
   renderDashboard(profile);
 
-  // Attempt background sync
   if (navigator.onLine) syncGist().catch(() => {});
 }
 
-function onOnboardingComplete(profile) {
+async function onOnboardingComplete(profile) {
   updateProfileBtn(profile);
   setupNav();
   showView('dashboard');
+  const { renderDashboard } = await loadView('dashboard');
   renderDashboard(profile);
 }
 
@@ -48,13 +52,14 @@ function setupNav() {
       showView(view);
 
       const profileId = getActiveProfile();
-      const profile = await getProfile(profileId);
+      const profile   = await getProfile(profileId);
+      const mod       = await loadView(view);
 
-      if (view === 'dashboard') renderDashboard(profile);
-      else if (view === 'workout') renderWorkout(profile);
-      else if (view === 'meals') renderMeals(profile);
-      else if (view === 'sleep') renderSleep(profile);
-      else if (view === 'profile') renderProfile(profile, refreshAll);
+      if (view === 'dashboard') mod.renderDashboard(profile);
+      else if (view === 'workout') mod.renderWorkout(profile);
+      else if (view === 'meals')   mod.renderMeals(profile);
+      else if (view === 'sleep')   mod.renderSleep(profile);
+      else if (view === 'profile') mod.renderProfile(profile, refreshAll);
     });
   });
 
@@ -65,8 +70,6 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   const el = document.getElementById(`view-${name}`);
   if (el) el.classList.remove('hidden');
-
-  // Hide nav on onboarding
   const nav = document.getElementById('bottom-nav');
   nav.style.display = name === 'onboarding' ? 'none' : 'flex';
 }
@@ -80,29 +83,32 @@ function updateProfileBtn(profile) {
 
 async function switchProfile() {
   const current = getActiveProfile();
-  const next = current === 'user1' ? 'user2' : 'user1';
+  const next    = current === 'user1' ? 'user2' : 'user1';
   setActiveProfile(next);
   const profile = await getProfile(next);
   updateProfileBtn(profile);
 
   if (!profile || !profile.onboardingDone) {
     showView('onboarding');
+    const { renderOnboarding } = await loadView('onboarding');
     renderOnboarding(next, onOnboardingComplete);
     return;
   }
 
+  setupNav();
   showView('dashboard');
+  const { renderDashboard } = await loadView('dashboard');
   renderDashboard(profile);
 }
 
 async function refreshAll() {
   const profileId = getActiveProfile();
-  const profile = await getProfile(profileId);
+  const profile   = await getProfile(profileId);
   updateProfileBtn(profile);
+  const { renderDashboard } = await loadView('dashboard');
   renderDashboard(profile);
 }
 
-// Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
