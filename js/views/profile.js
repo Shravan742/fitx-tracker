@@ -90,18 +90,34 @@ export async function renderProfile(profile, onUpdate) {
 
   // Save profile
   document.getElementById('save-profile-btn').onclick = async () => {
+    const newWeight = +document.getElementById('p-weight').value;
     const updated = {
       ...profile,
       name:          document.getElementById('p-name').value.trim(),
       age:           +document.getElementById('p-age').value,
       sex:           document.getElementById('p-sex').value,
       heightCm:      +document.getElementById('p-height').value,
-      weightKg:      +document.getElementById('p-weight').value,
+      weightKg:      newWeight,
       activityLevel: document.getElementById('p-activity').value,
       goal:          document.getElementById('p-goal').value,
       updatedAt:     new Date().toISOString(),
     };
     await saveProfile(updated);
+
+    // Clear today's meal plan cache so it regenerates with new macros
+    const today = dayjs().format('YYYY-MM-DD');
+    Object.keys(localStorage).filter(k => k.startsWith(`fitx_plan_v5_${pid}_${today}`))
+      .forEach(k => localStorage.removeItem(k));
+
+    // Sync weight to tracking history if it changed
+    if (newWeight && newWeight !== profile.weightKg) {
+      const wKey   = `fitx_weights_${pid}`;
+      const today  = dayjs().format('YYYY-MM-DD');
+      const entries = JSON.parse(localStorage.getItem(wKey) || '[]').filter(w => w.date !== today);
+      entries.push({ date: today, weightKg: newWeight });
+      localStorage.setItem(wKey, JSON.stringify(entries));
+    }
+
     onUpdate && onUpdate();
     renderProfile(updated, onUpdate);
   };

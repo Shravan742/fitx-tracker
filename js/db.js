@@ -5,8 +5,8 @@ let _db;
 
 export const db = {
   async open() {
-    _db = await openDB('fitx', 1, {
-      upgrade(database) {
+    _db = await openDB('fitx', 2, {
+      upgrade(database, oldVersion) {
         // Per-profile blobs
         if (!database.objectStoreNames.contains('profiles')) {
           database.createObjectStore('profiles', { keyPath: 'id' });
@@ -34,6 +34,11 @@ export const db = {
         // Offline sync queue
         if (!database.objectStoreNames.contains('syncQueue')) {
           database.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+        }
+        // Weight log (v2)
+        if (!database.objectStoreNames.contains('weights')) {
+          const w = database.createObjectStore('weights', { keyPath: 'id', autoIncrement: true });
+          w.createIndex('by-profile-date', ['profileId', 'date']);
         }
       }
     });

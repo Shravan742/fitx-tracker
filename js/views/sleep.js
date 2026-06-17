@@ -62,7 +62,10 @@ export async function renderSleep(profile) {
   };
 
   if (logs.length) {
-    const ctx = document.getElementById('sleep-chart').getContext('2d');
+    const canvas = document.getElementById('sleep-chart');
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+    const ctx = canvas.getContext('2d');
     new Chart(ctx, {
       type: 'bar',
       data: {
