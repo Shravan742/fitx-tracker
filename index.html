@@ -1,48 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1a1a2e" />
-  <title>FitX Tracker</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="css/main.css" />
-</head>
-<body>
-  <div id="app">
-    <!-- Profile switcher -->
-    <header id="header">
-      <span id="app-title">FitX</span>
-      <button id="profile-switcher"></button>
-    </header>
-
-    <!-- Main nav -->
-    <nav id="bottom-nav">
-      <button class="nav-btn active" data-view="dashboard">Home</button>
-      <button class="nav-btn" data-view="workout">Workout</button>
-      <button class="nav-btn" data-view="meals">Meals</button>
-      <button class="nav-btn" data-view="sleep">Sleep</button>
-      <button class="nav-btn" data-view="profile">Profile</button>
-    </nav>
-
-    <!-- Views -->
-    <main id="main-content">
-      <section id="view-onboarding" class="view hidden"></section>
-      <section id="view-dashboard" class="view"></section>
-      <section id="view-workout" class="view hidden"></section>
-      <section id="view-meals" class="view hidden"></section>
-      <section id="view-sleep" class="view hidden"></section>
-      <section id="view-profile" class="view hidden"></section>
-    </main>
-  </div>
-
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
-
-  <!-- App modules -->
-  <script type="module" src="js/app.js?v=2"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#0f1320" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FitX Tracker</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
