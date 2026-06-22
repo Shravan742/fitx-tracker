@@ -12,7 +12,14 @@ async function loadView(name) {
 
 const VIEWS = ['dashboard', 'workout', 'meals', 'sleep', 'profile'];
 
+async function waitForIdb() {
+  for (let i = 0; i < 50 && typeof idb === 'undefined'; i++) {
+    await new Promise(r => setTimeout(r, 50));
+  }
+}
+
 async function init() {
+  await waitForIdb();
   await db.open();
 
   const profileId = getActiveProfile();

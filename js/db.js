@@ -1,11 +1,11 @@
 // Thin wrapper around IndexedDB via idb
-const { openDB } = idb;
-
+// Reference idb.openDB lazily (not at module top-level) so this module never
+// poisons itself if the idb CDN script hasn't finished loading yet.
 let _db;
 
 export const db = {
   async open() {
-    _db = await openDB('fitx', 2, {
+    _db = await idb.openDB('fitx', 2, {
       upgrade(database, oldVersion) {
         // Per-profile blobs
         if (!database.objectStoreNames.contains('profiles')) {
