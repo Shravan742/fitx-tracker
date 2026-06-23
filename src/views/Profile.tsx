@@ -4,11 +4,21 @@ import { calcMacros } from '../lib/macros';
 import { getActiveProfileId, logWeight, clearPlanCache } from '../lib/storage';
 import { get1RMHistory, estimate1RM, save1RM } from '../lib/orm';
 import { getGistConfig, setGistConfig, syncGist } from '../lib/sync';
-import type { ActivityLevel, Goal, OneRepMax, Sex } from '../types';
+import type { ActivityLevel, Goal, OneRepMax, Sex, Weekday } from '../types';
 import Card from '../components/Card';
 import dayjs from 'dayjs';
 
 const LIFTS = ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press'];
+
+const WEEKDAYS: [Weekday, string][] = [
+  ['monday', 'Mon'],
+  ['tuesday', 'Tue'],
+  ['wednesday', 'Wed'],
+  ['thursday', 'Thu'],
+  ['friday', 'Fri'],
+  ['saturday', 'Sat'],
+  ['sunday', 'Sun'],
+];
 
 export default function Profile() {
   const { profile, saveProfile } = useProfile();
@@ -133,6 +143,41 @@ export default function Profile() {
               <option value="maintain">Maintain</option>
               <option value="bulk">Bulk</option>
             </select>
+          </label>
+          <div>
+            <span className="mb-1 block text-xs text-text-muted">Rest / cooling days</span>
+            <div className="grid grid-cols-4 gap-1.5">
+              {WEEKDAYS.map(([val, label]) => {
+                const active = (form.restDays ?? []).includes(val);
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      const current = form.restDays ?? [];
+                      const updated = active ? current.filter((d) => d !== val) : [...current, val];
+                      setForm({ ...form, restDays: updated });
+                    }}
+                    className={`rounded-lg border p-2 text-center text-xs font-medium ${
+                      active ? 'border-accent bg-accent/10 text-accent' : 'border-border'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-xs text-text-muted">Weekly grocery budget (€)</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              className="input"
+              value={form.weeklyBudget ?? 0}
+              onChange={(e) => setForm({ ...form, weeklyBudget: +e.target.value })}
+            />
           </label>
           <button className="btn-primary w-full" onClick={handleSave}>
             Save changes

@@ -17,6 +17,7 @@ import {
 } from '../lib/mealPlan';
 import Card from '../components/Card';
 import MealSlotCard from '../components/MealSlotCard';
+import WeeklyPlanView from '../components/WeeklyPlanView';
 
 const DIET_LABELS: Record<Diet, { label: string; icon: string }> = {
   chicken: { label: 'Chicken', icon: '🍗' },
@@ -32,6 +33,7 @@ export default function Meals() {
   const pid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
 
+  const [tab, setTab] = useState<'today' | 'week'>('today');
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
   const [surplus, setSurplus] = useState<MacroSurplus | null>(null);
   const [plan, setPlan] = useState<PlanEntry[]>([]);
@@ -180,14 +182,45 @@ export default function Meals() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Meals</h1>
+        {tab === 'today' && (
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface2 text-lg"
+            onClick={() => setShowCustomForm((v) => !v)}
+          >
+            ＋
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-2 rounded-xl bg-surface2 p-1">
         <button
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface2 text-lg"
-          onClick={() => setShowCustomForm((v) => !v)}
+          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
+            tab === 'today' ? 'bg-accent text-white' : 'text-text-muted'
+          }`}
+          onClick={() => setTab('today')}
         >
-          ＋
+          Today
+        </button>
+        <button
+          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
+            tab === 'week' ? 'bg-accent text-white' : 'text-text-muted'
+          }`}
+          onClick={() => setTab('week')}
+        >
+          This Week
         </button>
       </div>
 
+      {tab === 'week' ? (
+        targets ? (
+          <WeeklyPlanView diets={activeDiets} targets={targets} weeklyBudget={profile.weeklyBudget ?? 0} />
+        ) : (
+          <Card>
+            <p className="text-sm text-text-muted">Complete your profile to see a weekly meal plan.</p>
+          </Card>
+        )
+      ) : (
+        <>
       {targets ? (
         <Card>
           <div className="flex justify-between text-center">
@@ -200,9 +233,9 @@ export default function Meals() {
             <Stat value={targets.calories} label="target kcal" />
           </div>
           <div className="mt-4 space-y-2">
-            <MacroBar label="Protein" eaten={eaten.protein} target={targets.protein} color="#60a5fa" />
-            <MacroBar label="Carbs" eaten={eaten.carbs} target={targets.carbs} color="#4ade80" />
-            <MacroBar label="Fat" eaten={eaten.fat} target={targets.fat} color="#ffb84d" />
+            <MacroBar label="Protein" eaten={eaten.protein} target={targets.protein} color="#22d3ee" />
+            <MacroBar label="Carbs" eaten={eaten.carbs} target={targets.carbs} color="#34d399" />
+            <MacroBar label="Fat" eaten={eaten.fat} target={targets.fat} color="#fbbf24" />
           </div>
           {activeDiets.length > 0 && (
             <p className="mt-3 text-xs text-text-muted">
@@ -380,6 +413,8 @@ export default function Meals() {
             </div>
           </form>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

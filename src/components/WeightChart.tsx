@@ -35,10 +35,10 @@ export default function WeightChart({ entries }: { entries: WeightEntry[] }) {
         {
           label: 'Weight',
           data: vals,
-          borderColor: '#ff4d6d',
-          backgroundColor: '#ff4d6d',
+          borderColor: '#7c5cff',
+          backgroundColor: '#7c5cff',
           pointRadius: 3,
-          pointBackgroundColor: '#ff4d6d',
+          pointBackgroundColor: '#7c5cff',
           tension: 0.3,
           borderWidth: 2,
         },
@@ -47,7 +47,7 @@ export default function WeightChart({ entries }: { entries: WeightEntry[] }) {
               {
                 label: 'Trend',
                 data: trendline,
-                borderColor: '#60a5fa',
+                borderColor: '#22d3ee',
                 borderDash: [5, 4],
                 pointRadius: 0,
                 borderWidth: 1.5,
@@ -67,8 +67,8 @@ export default function WeightChart({ entries }: { entries: WeightEntry[] }) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#8993b8', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#8993b8', font: { size: 10 } }, grid: { color: '#2a315255' } },
+          x: { ticks: { color: '#8891b3', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#8891b3', font: { size: 10 } }, grid: { color: '#262c4255' } },
         },
       }}
     />

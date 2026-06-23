@@ -6,12 +6,20 @@ import { getActiveProfileId } from '../lib/storage';
 import { getSessions } from '../lib/db';
 import { getSuggestion, type Suggestion } from '../lib/orm';
 import { estimate1RM, save1RM } from '../lib/orm';
+import { getTodaysFocus, SPLIT_LABEL } from '../lib/workoutSplit';
+import { useProfile } from '../lib/ProfileContext';
 import Card from '../components/Card';
 import SuggestionCard from '../components/SuggestionCard';
 import SessionForm from '../components/SessionForm';
 import ExerciseDetail from '../components/ExerciseDetail';
 
 const MAJOR_LIFTS = ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press'];
+const MAJOR_LIFT_MUSCLE: Record<string, MuscleGroup> = {
+  Squat: 'Legs',
+  'Bench Press': 'Chest',
+  Deadlift: 'Back',
+  'Overhead Press': 'Shoulders',
+};
 const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'];
 const MUSCLE_ICON: Record<MuscleGroup, string> = {
   Chest: '🏋️',
@@ -29,8 +37,10 @@ const EQUIPMENT_ICON: Record<string, string> = {
   Machine: '⚙️',
   Bodyweight: '🤸',
 };
+const RECOMMENDED_PER_MUSCLE = 2;
 
 export default function Workout() {
+  const { profile } = useProfile();
   const pid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
 
@@ -40,6 +50,7 @@ export default function Workout() {
   const [activeMuscle, setActiveMuscle] = useState<MuscleGroup | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showSessionForm, setShowSessionForm] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   // Quick 1RM form
   const [ormLift, setOrmLift] = useState(MAJOR_LIFTS[0]);
@@ -59,7 +70,28 @@ export default function Workout() {
 
   useEffect(() => {
     reloadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pid]);
+
+  const focus = useMemo(
+    () => (profile ? getTodaysFocus(profile.goal, profile.restDays ?? [], today) : null),
+    [profile, today],
+  );
+
+  const recommended = useMemo(() => {
+    if (!focus || focus.isRest || !focus.muscles) return {};
+    const byMuscle: Record<string, Exercise[]> = {};
+    focus.muscles.forEach((m) => {
+      byMuscle[m] = exercises.filter((ex) => ex.muscle === m).slice(0, RECOMMENDED_PER_MUSCLE);
+    });
+    return byMuscle;
+  }, [focus]);
+
+  const relevantMajorLifts = useMemo(() => {
+    if (!focus || focus.isRest || !focus.muscles) return MAJOR_LIFTS;
+    const matches = MAJOR_LIFTS.filter((l) => focus.muscles!.includes(MAJOR_LIFT_MUSCLE[l]));
+    return matches.length ? matches : MAJOR_LIFTS;
+  }, [focus]);
 
   const filtered = useMemo(() => {
     return exercises.filter((ex) => {
@@ -101,9 +133,58 @@ export default function Workout() {
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Workout</h1>
 
-      <Card title="Today's Suggestions">
+      {focus?.isRest ? (
+        <Card className="card-glow text-center">
+          <div className="mb-1 text-3xl">😌</div>
+          <div className="text-lg font-bold">Rest day</div>
+          <p className="mt-1 text-sm text-text-muted">
+            Recovery is part of the plan — no recommended exercises today. Stretch, walk, or just relax.
+          </p>
+        </Card>
+      ) : (
+        focus && (
+          <Card className="card-glow">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-text-muted">Today's Focus</div>
+                <div className="gradient-text text-xl font-extrabold">{focus.dayType}</div>
+              </div>
+              <span className="rounded-full bg-surface2 px-2.5 py-1 text-xs font-medium text-text-muted">
+                {SPLIT_LABEL[focus.splitType!]} split
+              </span>
+            </div>
+          </Card>
+        )
+      )}
+
+      {!focus?.isRest && Object.keys(recommended).length > 0 && (
+        <Card title="Recommended Exercises">
+          <div className="space-y-4">
+            {Object.entries(recommended).map(([muscle, exs]) => (
+              <div key={muscle}>
+                <div className="mb-2 text-sm font-semibold text-accent2">
+                  {MUSCLE_ICON[muscle as MuscleGroup]} {muscle}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {exs.map((ex) => (
+                    <button
+                      key={ex.name}
+                      onClick={() => setSelectedExercise(ex)}
+                      className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium hover:bg-border"
+                    >
+                      {EQUIPMENT_ICON[ex.equipment]} {ex.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card title="Suggestions for today">
         <div className="grid grid-cols-2 gap-2">
-          {MAJOR_LIFTS.map((lift) => (
+          {relevantMajorLifts.map((lift) => (
             <SuggestionCard key={lift} lift={lift} suggestion={suggestions[lift] ?? null} />
           ))}
         </div>
@@ -164,62 +245,65 @@ export default function Workout() {
         </button>
       )}
 
-      <Card
-        title={
-          <span>
-            Exercise Library <span className="ml-1 rounded-full bg-surface2 px-2 py-0.5 text-text">{exercises.length}</span>
-          </span>
-        }
+      <button
+        className="btn-secondary w-full"
+        onClick={() => setShowLibrary((v) => !v)}
       >
-        <input
-          className="input mb-3"
-          placeholder="🔍 Search for exercises"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <button
-            onClick={() => setActiveMuscle(null)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              !activeMuscle ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
-            }`}
-          >
-            🍽️ All
-          </button>
-          {MUSCLE_GROUPS.map((m) => (
+        {showLibrary ? '▲ Hide' : '▼ Browse'} full exercise library ({exercises.length})
+      </button>
+
+      {showLibrary && (
+        <Card>
+          <input
+            className="input mb-3"
+            placeholder="🔍 Search for exercises"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="mb-4 flex flex-wrap gap-1.5">
             <button
-              key={m}
-              onClick={() => setActiveMuscle(m)}
+              onClick={() => setActiveMuscle(null)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                activeMuscle === m ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+                !activeMuscle ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
               }`}
             >
-              {MUSCLE_ICON[m]} {m}
+              🍽️ All
             </button>
-          ))}
-        </div>
+            {MUSCLE_GROUPS.map((m) => (
+              <button
+                key={m}
+                onClick={() => setActiveMuscle(m)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                  activeMuscle === m ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+                }`}
+              >
+                {MUSCLE_ICON[m]} {m}
+              </button>
+            ))}
+          </div>
 
-        <div className="space-y-4">
-          {Object.entries(grouped).map(([muscle, exs]) => (
-            <div key={muscle}>
-              <div className="mb-2 text-sm font-semibold text-accent2">
-                {MUSCLE_ICON[muscle as MuscleGroup]} {muscle}
+          <div className="space-y-4">
+            {Object.entries(grouped).map(([muscle, exs]) => (
+              <div key={muscle}>
+                <div className="mb-2 text-sm font-semibold text-accent2">
+                  {MUSCLE_ICON[muscle as MuscleGroup]} {muscle}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {exs.map((ex) => (
+                    <button
+                      key={ex.name}
+                      onClick={() => setSelectedExercise(ex)}
+                      className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium hover:bg-border"
+                    >
+                      {EQUIPMENT_ICON[ex.equipment]} {ex.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {exs.map((ex) => (
-                  <button
-                    key={ex.name}
-                    onClick={() => setSelectedExercise(ex)}
-                    className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium hover:bg-border"
-                  >
-                    {EQUIPMENT_ICON[ex.equipment]} {ex.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card title="Recent Sessions">
         {recent.length ? (

@@ -11,8 +11,8 @@ export default function BodyMap({ muscle, exerciseName }: { muscle: MuscleGroup;
         <Model
           data={data}
           type="anterior"
-          bodyColor="#2a3152"
-          highlightedColors={['#ff4d6d']}
+          bodyColor="#262c42"
+          highlightedColors={['#7c5cff']}
           style={{ width: '7rem' }}
         />
         <span className="text-[0.65rem] uppercase tracking-wide text-text-muted">Front</span>
@@ -21,8 +21,8 @@ export default function BodyMap({ muscle, exerciseName }: { muscle: MuscleGroup;
         <Model
           data={data}
           type="posterior"
-          bodyColor="#2a3152"
-          highlightedColors={['#ff4d6d']}
+          bodyColor="#262c42"
+          highlightedColors={['#7c5cff']}
           style={{ width: '7rem' }}
         />
         <span className="text-[0.65rem] uppercase tracking-wide text-text-muted">Back</span>

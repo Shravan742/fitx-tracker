@@ -1,9 +1,19 @@
 import { useState } from 'react';
-import type { ActivityLevel, Goal, Profile, Sex } from '../types';
+import type { ActivityLevel, Goal, Profile, Sex, Weekday } from '../types';
 import { getActiveProfileId } from '../lib/storage';
 import { useProfile } from '../lib/ProfileContext';
 
-const STEPS = ['Basic info', 'Activity', 'Goal', 'Review'] as const;
+const STEPS = ['Basic info', 'Activity', 'Goal', 'Rest days', 'Budget', 'Review'] as const;
+
+const WEEKDAYS: [Weekday, string][] = [
+  ['monday', 'Mon'],
+  ['tuesday', 'Tue'],
+  ['wednesday', 'Wed'],
+  ['thursday', 'Thu'],
+  ['friday', 'Fri'],
+  ['saturday', 'Sat'],
+  ['sunday', 'Sun'],
+];
 
 export default function Onboarding() {
   const { saveProfile } = useProfile();
@@ -17,6 +27,8 @@ export default function Onboarding() {
     activityLevel: 'moderate',
     goal: 'maintain',
     dietPreferences: [],
+    restDays: ['sunday'],
+    weeklyBudget: 60,
   });
 
   const next = () => {
@@ -27,6 +39,12 @@ export default function Onboarding() {
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const toggleRestDay = (day: Weekday) => {
+    const current = data.restDays ?? [];
+    const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+    setData({ ...data, restDays: updated });
+  };
 
   const finish = async () => {
     const id = getActiveProfileId();
@@ -40,6 +58,8 @@ export default function Onboarding() {
       activityLevel: data.activityLevel as ActivityLevel,
       goal: data.goal as Goal,
       dietPreferences: data.dietPreferences ?? [],
+      restDays: data.restDays?.length ? data.restDays : ['sunday'],
+      weeklyBudget: data.weeklyBudget ?? 60,
       onboardingDone: true,
       updatedAt: new Date().toISOString(),
     };
@@ -48,16 +68,22 @@ export default function Onboarding() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-10">
-      <h1 className="text-center text-2xl font-bold">Welcome to FitX</h1>
+      <h1 className="text-center text-2xl font-bold">
+        Welcome to <span className="gradient-text">FitX</span>
+      </h1>
       <p className="mb-6 text-center text-sm text-text-muted">Let's set up your profile</p>
 
       <div className="mb-6 flex justify-center gap-2">
         {STEPS.map((_, i) => (
-          <div key={i} className={`h-1.5 w-8 rounded-full ${i <= step ? 'bg-accent' : 'bg-border'}`} />
+          <div
+            key={i}
+            className={`h-1.5 w-7 rounded-full ${i <= step ? '' : 'bg-border'}`}
+            style={i <= step ? { backgroundImage: 'linear-gradient(135deg, var(--color-accent), var(--color-accent2))' } : undefined}
+          />
         ))}
       </div>
 
-      <div className="flex-1 rounded-2xl border border-border bg-card p-5">
+      <div className="flex-1 rounded-2xl border border-border bg-card p-5 card-glow">
         {step === 0 && (
           <div className="space-y-4">
             <h3 className="font-semibold">Basic info</h3>
@@ -159,6 +185,53 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Rest / cooling days</h3>
+            <p className="text-xs text-text-muted">
+              Pick the day(s) you want off each week. We'll build your workout recommendations around the days you
+              train — you can change this any time in your Profile.
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {WEEKDAYS.map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => toggleRestDay(val)}
+                  className={`rounded-xl border p-3 text-center text-sm font-medium ${
+                    data.restDays?.includes(val) ? 'border-accent bg-accent/10 text-accent' : 'border-border'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {!data.restDays?.length && (
+              <p className="text-xs text-warn">Select at least one rest day, or training every day with no recovery isn't recommended.</p>
+            )}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Weekly grocery budget</h3>
+            <p className="text-xs text-text-muted">
+              How much do you want to spend on groceries per week? We'll use this to keep your 7-day meal plan and
+              shopping list within budget — you can adjust it any time.
+            </p>
+            <Field label="Weekly budget (€)">
+              <input
+                type="number"
+                min={0}
+                step={5}
+                className="input"
+                placeholder="e.g. 60"
+                value={data.weeklyBudget ?? ''}
+                onChange={(e) => setData({ ...data, weeklyBudget: +e.target.value })}
+              />
+            </Field>
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="space-y-3 text-sm">
             <h3 className="font-semibold">Review</h3>
             <Row label="Name" value={data.name} />
@@ -167,6 +240,8 @@ export default function Onboarding() {
             <Row label="Weight" value={`${data.weightKg} kg`} />
             <Row label="Activity" value={data.activityLevel} />
             <Row label="Goal" value={data.goal} />
+            <Row label="Rest days" value={(data.restDays ?? []).join(', ') || 'none'} />
+            <Row label="Weekly budget" value={`€${data.weeklyBudget ?? 0}`} />
           </div>
         )}
       </div>

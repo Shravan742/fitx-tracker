@@ -3,6 +3,7 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export type Goal = 'cut' | 'maintain' | 'bulk';
 export type Diet = 'chicken' | 'beef' | 'pork' | 'fish' | 'vegetarian' | 'vegan';
 export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'any';
+export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export interface Profile {
   id: string;
@@ -15,6 +16,8 @@ export interface Profile {
   goal: Goal;
   dietPreferences: Diet[];
   onboardingDone: boolean;
+  restDays: Weekday[];
+  weeklyBudget: number;
   updatedAt?: string;
 }
 

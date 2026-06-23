@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0f1320;
-  --color-surface: #161b2e;
-  --color-surface2: #1d2440;
-  --color-card: #1a2038;
-  --color-border: #2a3152;
-  --color-accent: #ff4d6d;
-  --color-accent2: #ffb84d;
-  --color-text: #f0f2f8;
-  --color-text-muted: #8993b8;
-  --color-success: #4ade80;
-  --color-info: #60a5fa;
+  --color-bg: #0a0c14;
+  --color-surface: #11141f;
+  --color-surface2: #181c2c;
+  --color-card: #141826;
+  --color-border: #262c42;
+  --color-accent: #7c5cff;
+  --color-accent2: #22d3ee;
+  --color-pink: #f472b6;
+  --color-text: #eef0f8;
+  --color-text-muted: #8891b3;
+  --color-success: #34d399;
+  --color-warn: #fbbf24;
+  --color-info: #38bdf8;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -30,6 +32,10 @@ html, body, #root {
 
 body {
   overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, transparent 45%),
+    radial-gradient(circle at 100% 20%, color-mix(in srgb, var(--color-accent2) 10%, transparent) 0%, transparent 40%);
+  background-attachment: fixed;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -43,12 +49,20 @@ input, select, textarea, button { font-family: inherit; }
     @apply w-full rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none transition-colors focus:border-accent;
   }
   .btn-primary {
-    @apply rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-40;
+    @apply rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-40;
+    background-image: linear-gradient(135deg, var(--color-accent), var(--color-pink));
   }
   .btn-secondary {
     @apply rounded-xl border border-border bg-surface2 px-4 py-2.5 text-sm font-semibold text-text transition-colors hover:bg-surface active:opacity-80;
   }
   .btn-sm {
     @apply rounded-lg px-3 py-1.5 text-xs font-semibold;
+  }
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--color-accent), var(--color-accent2));
+  }
+  .card-glow {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 15%, transparent), 0 8px 24px -8px color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 }
