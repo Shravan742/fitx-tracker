@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProfile } from '../lib/ProfileContext';
 import { calcMacros } from '../lib/macros';
-import { getActiveProfileId, logWeight, clearPlanCache } from '../lib/storage';
+import { getActiveProfileId, logWeight, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
 import { get1RMHistory, estimate1RM, save1RM } from '../lib/orm';
 import { getGistConfig, setGistConfig, syncGist } from '../lib/sync';
 import type { ActivityLevel, Goal, OneRepMax, Sex, Weekday } from '../types';
@@ -53,6 +53,7 @@ export default function Profile() {
     const updated = { ...form, updatedAt: new Date().toISOString() };
     await saveProfile(updated);
     clearPlanCache(pid, today);
+    clearWeeklyPlanCache(pid, today);
     if (updated.weightKg !== profile.weightKg) {
       logWeight(pid, today, updated.weightKg);
     }

@@ -239,6 +239,79 @@ export function generateWeeklyPlan(
   return days;
 }
 
+export function getWeeklyPlanKey(
+  profileId: string,
+  startDate: string,
+  diets: Diet[],
+  targets?: Macros | null,
+  weeklyBudget?: number,
+): string {
+  const macroSig = targets ? `_${targets.calories}` : '';
+  const budgetSig = weeklyBudget ? `_b${weeklyBudget}` : '';
+  return `fitx_weekplan_v1_${profileId}_${startDate}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
+}
+
+export function loadWeeklyPlanCached(
+  profileId: string,
+  startDate: string,
+  diets: Diet[],
+  targets: Macros | null,
+  weeklyBudget?: number,
+): DayPlan[] {
+  const key = getWeeklyPlanKey(profileId, startDate, diets, targets, weeklyBudget);
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || 'null');
+    if (saved && saved.length === 7) return saved;
+  } catch {
+    /* ignore */
+  }
+  const plan = generateWeeklyPlan(diets, targets, startDate, weeklyBudget);
+  localStorage.setItem(key, JSON.stringify(plan));
+  return plan;
+}
+
+/** Swaps a single slot on a single day of the cached weekly plan, cycling through candidates. */
+export function swapWeeklySlot(
+  profileId: string,
+  startDate: string,
+  diets: Diet[],
+  targets: Macros | null,
+  weeklyBudget: number | undefined,
+  dayIndex: number,
+  slotIdx: number,
+): DayPlan[] {
+  const key = getWeeklyPlanKey(profileId, startDate, diets, targets, weeklyBudget);
+  const weekPlan = loadWeeklyPlanCached(profileId, startDate, diets, targets, weeklyBudget);
+  const pool = getFiltered(diets);
+  const slot = MEAL_SLOTS[slotIdx];
+  const dayPlan = weekPlan[dayIndex];
+  if (!dayPlan) return weekPlan;
+
+  const currentGIdx = dayPlan.plan[slotIdx].recipeIdx;
+
+  const byType = pool
+    .map((r) => ({ r, gi: recipes.indexOf(r) }))
+    .filter((x) => slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
+  const others = pool
+    .map((r) => ({ r, gi: recipes.indexOf(r) }))
+    .filter((x) => !slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
+  const candidates = [...byType, ...others];
+
+  const cycleKey = `${key}_swapIdx_${dayIndex}_${slotIdx}`;
+  const cycleIdx = parseInt(localStorage.getItem(cycleKey) || '0', 10) % Math.max(candidates.length, 1);
+  const pick = candidates[cycleIdx];
+
+  if (pick) {
+    const tgtCal = Math.round((targets?.calories || 2000) * slot.ratio);
+    const isSnack = slot.key === 'snack';
+    const newScale = isSnack ? Math.min(1, scaleFor(pick.r, tgtCal)) : scaleFor(pick.r, tgtCal);
+    dayPlan.plan[slotIdx] = { ...dayPlan.plan[slotIdx], recipeIdx: pick.gi, scale: newScale };
+    localStorage.setItem(cycleKey, String(cycleIdx + 1));
+  }
+  localStorage.setItem(key, JSON.stringify(weekPlan));
+  return weekPlan;
+}
+
 export function loadPlan(
   profileId: string,
   date: string,

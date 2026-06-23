@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import recipes from '../data/recipes';
 import type { Diet, Macros } from '../types';
-import { generateWeeklyPlan, scaledMacros } from '../lib/mealPlan';
+import { MEAL_SLOTS, loadWeeklyPlanCached, swapWeeklySlot, scaledMacros, type DayPlan } from '../lib/mealPlan';
 import { buildShoppingList } from '../lib/shoppingList';
+import { getActiveProfileId, getShoppingChecklist, toggleShoppingItem } from '../lib/storage';
 import Card from './Card';
 
 export default function WeeklyPlanView({
@@ -15,17 +16,37 @@ export default function WeeklyPlanView({
   targets: Macros;
   weeklyBudget: number;
 }) {
-  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const pid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [weekPlan, setWeekPlan] = useState<DayPlan[]>([]);
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
-  const weekPlan = useMemo(
-    () => generateWeeklyPlan(diets, targets, today, weeklyBudget),
-    [diets, targets, today, weeklyBudget],
-  );
+  useEffect(() => {
+    setWeekPlan(loadWeeklyPlanCached(pid, today, diets, targets, weeklyBudget));
+    setChecklist(getShoppingChecklist(pid, today));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pid, today, JSON.stringify(diets), targets.calories, weeklyBudget]);
+
   const shoppingList = useMemo(() => buildShoppingList(weekPlan), [weekPlan]);
 
   const overBudget = shoppingList.totalCost > weeklyBudget;
   const diff = Math.abs(shoppingList.totalCost - weeklyBudget).toFixed(2);
+
+  const handleSwap = (dayIndex: number, slotIdx: number) => {
+    const updated = swapWeeklySlot(pid, today, diets, targets, weeklyBudget, dayIndex, slotIdx);
+    setWeekPlan([...updated]);
+  };
+
+  const handleToggleItem = (item: string) => {
+    setChecklist(toggleShoppingItem(pid, today, item));
+  };
+
+  const boughtCount = shoppingList.items.filter((i) => checklist[i.item]).length;
+  const sortedItems = useMemo(
+    () => [...shoppingList.items].sort((a, b) => Number(!!checklist[a.item]) - Number(!!checklist[b.item])),
+    [shoppingList.items, checklist],
+  );
 
   return (
     <div className="space-y-4">
@@ -53,14 +74,14 @@ export default function WeeklyPlanView({
         </div>
         <p className={`mt-2 text-xs ${overBudget ? 'text-warn' : 'text-success'}`}>
           {overBudget
-            ? `€${diff} over budget even after picking cheaper recipes where possible — raise your budget or switch to more vegan/vegetarian options for a bigger drop.`
+            ? `€${diff} over budget even after picking cheaper recipes where possible — raise your budget, switch to more vegan/vegetarian options, or swap pricier meals below.`
             : `€${diff} under budget ✓ — plan already favors cheaper recipes within your macros.`}
         </p>
       </Card>
 
       <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">7-Day Plan</h2>
       <div className="space-y-2">
-        {weekPlan.map(({ date, plan }) => {
+        {weekPlan.map(({ date, plan }, dayIndex) => {
           const isToday = date === today;
           const isOpen = expandedDay === date;
           const dayTotals = plan.reduce(
@@ -91,14 +112,26 @@ export default function WeeklyPlanView({
               </button>
               {isOpen && (
                 <div className="space-y-2 border-t border-border px-4 py-3">
-                  {plan.map((p, idx) => {
+                  {plan.map((p, slotIdx) => {
                     const r = recipes[p.recipeIdx];
                     if (!r) return null;
                     const m = scaledMacros(r, p.scale ?? 1);
+                    const slot = MEAL_SLOTS[slotIdx];
                     return (
-                      <div key={idx} className="flex items-center justify-between text-sm">
-                        <span>{r.name}</span>
-                        <span className="text-xs text-text-muted">{m.calories} kcal</span>
+                      <div key={slotIdx} className="flex items-center justify-between gap-2 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[0.65rem] uppercase tracking-wide text-text-muted">
+                            {slot.icon} {slot.label}
+                          </div>
+                          <div className="truncate">{r.name}</div>
+                        </div>
+                        <span className="whitespace-nowrap text-xs text-text-muted">{m.calories} kcal</span>
+                        <button
+                          className="btn-secondary btn-sm whitespace-nowrap"
+                          onClick={() => handleSwap(dayIndex, slotIdx)}
+                        >
+                          ↻ Swap
+                        </button>
                       </div>
                     );
                   })}
@@ -109,17 +142,54 @@ export default function WeeklyPlanView({
         })}
       </div>
 
-      <Card title={`Shopping List (${shoppingList.items.length} items)`}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-          {shoppingList.items.map((item) => (
-            <div key={item.item} className="flex justify-between border-b border-border pb-1">
-              <span className="text-text-muted">{item.item}</span>
-              <span className="font-medium">
-                {item.grams > 0 ? `${item.grams}g` : ''}
-                {item.ml > 0 ? `${item.ml}ml` : ''}
+      <Card
+        title={
+          <span>
+            Shopping List ({shoppingList.items.length} items)
+            {shoppingList.items.length > 0 && (
+              <span className="ml-2 text-text-muted">
+                {boughtCount}/{shoppingList.items.length} bought
               </span>
-            </div>
-          ))}
+            )}
+          </span>
+        }
+      >
+        {shoppingList.items.length > 0 && (
+          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface2">
+            <div
+              className="h-full rounded-full bg-success transition-all"
+              style={{ width: `${(boughtCount / shoppingList.items.length) * 100}%` }}
+            />
+          </div>
+        )}
+        <div className="space-y-1">
+          {sortedItems.map((item) => {
+            const bought = !!checklist[item.item];
+            return (
+              <button
+                key={item.item}
+                onClick={() => handleToggleItem(item.item)}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
+                  bought ? 'opacity-40' : 'hover:bg-surface2'
+                }`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 text-xs ${
+                      bought ? 'border-success bg-success text-white' : 'border-border'
+                    }`}
+                  >
+                    {bought ? '✓' : ''}
+                  </span>
+                  <span className={`truncate ${bought ? 'line-through text-text-muted' : ''}`}>{item.item}</span>
+                </span>
+                <span className={`whitespace-nowrap font-medium ${bought ? 'text-text-muted' : ''}`}>
+                  {item.grams > 0 ? `${item.grams}g` : ''}
+                  {item.ml > 0 ? `${item.ml}ml` : ''}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Card>
     </div>

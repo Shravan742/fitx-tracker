@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../lib/ProfileContext';
 import { calcMacros } from '../lib/macros';
 import { getMealsForDate, getSleepLogs, putProfile } from '../lib/db';
-import { getActiveProfileId, getWeightHistory, logWeight, clearPlanCache } from '../lib/storage';
+import { getActiveProfileId, getWeightHistory, logWeight, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
 import { computeWeightTrend } from '../lib/weightTrend';
 import type { MealLog, SleepLog, WeightEntry } from '../types';
 import Card from '../components/Card';
@@ -82,6 +82,7 @@ export default function Dashboard() {
     if (profile) {
       await putProfile({ ...profile, weightKg: val });
       clearPlanCache(pid, today);
+      clearWeeklyPlanCache(pid, today);
       await refresh();
     }
   };

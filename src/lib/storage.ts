@@ -31,3 +31,25 @@ export function clearPlanCache(profileId: string, date: string): void {
     .filter((k) => k.startsWith(`fitx_plan_v5_${profileId}_${date}`))
     .forEach((k) => localStorage.removeItem(k));
 }
+
+export function clearWeeklyPlanCache(profileId: string, startDate: string): void {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith(`fitx_weekplan_v1_${profileId}_${startDate}`))
+    .forEach((k) => localStorage.removeItem(k));
+}
+
+/** Shopping list "bought" checkmarks, scoped to a week so the checklist resets naturally each week. */
+export function getShoppingChecklist(profileId: string, startDate: string): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(`fitx_shopcheck_${profileId}_${startDate}`) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function toggleShoppingItem(profileId: string, startDate: string, item: string): Record<string, boolean> {
+  const checklist = getShoppingChecklist(profileId, startDate);
+  checklist[item] = !checklist[item];
+  localStorage.setItem(`fitx_shopcheck_${profileId}_${startDate}`, JSON.stringify(checklist));
+  return checklist;
+}
