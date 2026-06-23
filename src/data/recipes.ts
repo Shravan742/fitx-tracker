@@ -5223,6 +5223,240 @@ const recipes: Recipe[] = [
       'Add chicken and potatoes, simmer 20-25 minutes until both are cooked through.',
     ],
   },
+
+  // ── ULTRA-CHEAP HIGH-CALORIE STAPLES ─────────────────────────────────────────
+  // Deliberately high base calories with few ingredients: the planner scales a
+  // recipe's portion to hit each slot's calorie target, and cost scales with that
+  // same multiplier — so a recipe that's already close to the slot size barely
+  // needs scaling up, keeping cost near its cheap base price. Built for tight budgets.
+  {
+    name: 'Big Bowl of Oats & Peanut Butter',
+    cuisine: 'Western', diet: 'vegan', mealType: 'breakfast',
+    photo: 'https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Rolled oats (dry)', grams: 120 },
+      { item: 'Peanut butter', grams: 40 },
+      { item: 'Banana', grams: 120 },
+      { item: 'Plant milk', ml: 300 },
+    ],
+    macros: { calories: 780, protein: 24, carbs: 98, fat: 30 },
+    instructions: [
+      'Simmer oats in plant milk for 6-8 minutes, stirring occasionally.',
+      'Stir in peanut butter until fully melted through.',
+      'Top with sliced banana.',
+    ],
+  },
+  {
+    name: 'Rice & Lentil Dal Bowl',
+    cuisine: 'Indian', diet: 'vegan', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Rice (dry)', grams: 150 },
+      { item: 'Red lentils (dry)', grams: 120 },
+      { item: 'Oil', grams: 20 },
+      { item: 'Turmeric & cumin', grams: 5 },
+    ],
+    macros: { calories: 820, protein: 30, carbs: 130, fat: 16 },
+    instructions: [
+      'Cook rice according to packet instructions.',
+      'Simmer lentils in water with turmeric and cumin until soft, about 20 minutes.',
+      'Stir oil through the dal and serve over rice.',
+    ],
+  },
+  {
+    name: 'Potato & Bean Mash Bowl',
+    cuisine: 'Western', diet: 'vegan', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1607330289024-1535c6b4e1c1?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Potato', grams: 400 },
+      { item: 'White beans (cooked)', grams: 200 },
+      { item: 'Oil', grams: 20 },
+    ],
+    macros: { calories: 650, protein: 20, carbs: 110, fat: 16 },
+    instructions: [
+      'Boil potatoes until tender, about 15-18 minutes.',
+      'Mash with oil and a splash of the cooking water.',
+      'Fold in warmed white beans and season well.',
+    ],
+  },
+  {
+    name: 'Garlic Oil Pasta, Big Portion',
+    cuisine: 'Italian', diet: 'vegan', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Pasta (dry)', grams: 150 },
+      { item: 'Olive oil', grams: 25 },
+      { item: 'Garlic', grams: 12 },
+      { item: 'Chilli flakes', grams: 2 },
+    ],
+    macros: { calories: 760, protein: 22, carbs: 116, fat: 22 },
+    instructions: [
+      'Cook pasta in salted boiling water until al dente.',
+      'Gently fry sliced garlic and chilli flakes in olive oil until fragrant, not browned.',
+      'Toss the pasta through the garlic oil with a splash of pasta water.',
+    ],
+  },
+  {
+    name: 'Peanut Butter Banana Toast Stack',
+    cuisine: 'Western', diet: 'vegan', mealType: 'snack',
+    photo: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Wholegrain bread', grams: 90 },
+      { item: 'Peanut butter', grams: 30 },
+      { item: 'Banana', grams: 100 },
+    ],
+    macros: { calories: 430, protein: 13, carbs: 56, fat: 18 },
+    instructions: [
+      'Toast the bread.',
+      'Spread with peanut butter and top with sliced banana.',
+    ],
+  },
+  {
+    name: 'Big Veggie Omelette & Toast',
+    cuisine: 'Western', diet: 'vegetarian', mealType: 'breakfast',
+    photo: 'https://images.unsplash.com/photo-1510693206972-df098062cb71?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Eggs', grams: 250 },
+      { item: 'Cheddar cheese', grams: 40 },
+      { item: 'Wholegrain bread', grams: 80 },
+      { item: 'Oil', grams: 10 },
+    ],
+    macros: { calories: 690, protein: 38, carbs: 38, fat: 38 },
+    instructions: [
+      'Beat the eggs and season.',
+      'Cook in an oiled pan over medium heat, scatter cheese over, fold once set.',
+      'Serve with toasted bread.',
+    ],
+  },
+  {
+    name: 'Cheesy Mashed Potato Bowl',
+    cuisine: 'Western', diet: 'vegetarian', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1518013431117-eb1465fa5752?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Potato', grams: 400 },
+      { item: 'Cheddar cheese', grams: 60 },
+      { item: 'Butter', grams: 20 },
+      { item: 'Milk', ml: 60 },
+    ],
+    macros: { calories: 740, protein: 24, carbs: 90, fat: 32 },
+    instructions: [
+      'Boil potatoes until soft, about 15-18 minutes, then drain.',
+      'Mash with butter and milk until smooth.',
+      'Stir in grated cheddar until melted through.',
+    ],
+  },
+  {
+    name: 'Big Egg Fried Rice',
+    cuisine: 'Asian', diet: 'vegetarian', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Cooked rice (cold)', grams: 350 },
+      { item: 'Eggs', grams: 150 },
+      { item: 'Oil', grams: 15 },
+      { item: 'Soy sauce', ml: 20 },
+    ],
+    macros: { calories: 720, protein: 26, carbs: 100, fat: 22 },
+    instructions: [
+      'Scramble the eggs in oil, set aside.',
+      'Stir-fry cold rice on high heat for 4-5 minutes.',
+      'Return eggs to the pan, add soy sauce, toss to combine.',
+    ],
+  },
+  {
+    name: 'Chicken Thigh & Rice Bulk Bowl',
+    cuisine: 'Western', diet: 'chicken', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Chicken thigh (boneless)', grams: 280 },
+      { item: 'Rice (dry)', grams: 150 },
+      { item: 'Oil', grams: 15 },
+    ],
+    macros: { calories: 820, protein: 56, carbs: 110, fat: 20 },
+    instructions: [
+      'Cook rice according to packet instructions.',
+      'Pan-fry chicken thigh in oil until golden and cooked through, about 8-10 minutes.',
+      'Slice and serve over the rice.',
+    ],
+  },
+  {
+    name: 'Oats, Egg & Banana Power Bowl',
+    cuisine: 'Western', diet: 'vegetarian', mealType: 'breakfast',
+    photo: 'https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Rolled oats (dry)', grams: 100 },
+      { item: 'Eggs', grams: 100 },
+      { item: 'Banana', grams: 120 },
+      { item: 'Milk', ml: 250 },
+    ],
+    macros: { calories: 720, protein: 30, carbs: 96, fat: 20 },
+    instructions: [
+      'Simmer oats in milk for 6 minutes.',
+      'Hard-boil or fry the eggs separately and slice.',
+      'Top the oats with banana and egg.',
+    ],
+  },
+  {
+    name: 'Lentil & Potato Curry, Big Bowl',
+    cuisine: 'Indian', diet: 'vegan', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Red lentils (dry)', grams: 130 },
+      { item: 'Potato', grams: 250 },
+      { item: 'Oil', grams: 20 },
+      { item: 'Garam masala', grams: 5 },
+    ],
+    macros: { calories: 760, protein: 32, carbs: 122, fat: 16 },
+    instructions: [
+      'Simmer lentils and diced potato together in water until both are soft, about 20 minutes.',
+      'Stir in oil and garam masala, simmer 5 more minutes.',
+      'Season with salt to taste.',
+    ],
+  },
+  {
+    name: 'Peanut Butter Oat Bars',
+    cuisine: 'Western', diet: 'vegan', mealType: 'snack',
+    photo: 'https://images.unsplash.com/photo-1490567674331-72ffd445e6ed?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Rolled oats (dry)', grams: 70 },
+      { item: 'Peanut butter', grams: 35 },
+      { item: 'Honey', grams: 15 },
+    ],
+    macros: { calories: 400, protein: 13, carbs: 44, fat: 20 },
+    instructions: [
+      'Warm peanut butter and honey together until runny.',
+      'Mix in oats until evenly coated, press into a tray and chill 30 minutes before cutting into bars.',
+    ],
+  },
+  {
+    name: 'Pasta with Beans & Tomato, Big Portion',
+    cuisine: 'Italian', diet: 'vegan', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Pasta (dry)', grams: 140 },
+      { item: 'White beans (cooked)', grams: 200 },
+      { item: 'Crushed tomatoes', grams: 200 },
+      { item: 'Oil', grams: 15 },
+    ],
+    macros: { calories: 800, protein: 34, carbs: 130, fat: 16 },
+    instructions: [
+      'Cook pasta in salted boiling water until al dente.',
+      'Simmer beans in crushed tomatoes for 10 minutes.',
+      'Toss pasta through the sauce with a drizzle of oil.',
+    ],
+  },
 ];
 
 export default recipes;
