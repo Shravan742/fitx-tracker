@@ -76,9 +76,34 @@ export async function getSessions(profileId: string): Promise<WorkoutSession[]> 
   return all.filter((s) => s.profileId === profileId);
 }
 
+export async function getSessionForDate(profileId: string, date: string): Promise<WorkoutSession | undefined> {
+  const db = await openDb();
+  const matches = await db.getAllFromIndex('sessions', 'by-profile-date', [profileId, date]);
+  return matches[0];
+}
+
 export async function addSession(session: Omit<WorkoutSession, 'id'>): Promise<void> {
   const db = await openDb();
   await db.add('sessions', session);
+}
+
+export async function updateSession(session: WorkoutSession): Promise<void> {
+  const db = await openDb();
+  await db.put('sessions', session);
+}
+
+/** Appends one exercise entry to today's session, creating the session if it doesn't exist yet. */
+export async function logExerciseToTodaysSession(
+  profileId: string,
+  date: string,
+  entry: WorkoutSession['entries'][number],
+): Promise<void> {
+  const existing = await getSessionForDate(profileId, date);
+  if (existing) {
+    await updateSession({ ...existing, entries: [...existing.entries, entry] });
+  } else {
+    await addSession({ profileId, date, entries: [entry] });
+  }
 }
 
 export async function get1RMHistory(profileId: string, lift: string): Promise<OneRepMax[]> {

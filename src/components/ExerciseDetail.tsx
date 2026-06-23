@@ -1,4 +1,8 @@
+import { useState } from 'react';
+import dayjs from 'dayjs';
 import type { Exercise } from '../types';
+import { getActiveProfileId } from '../lib/storage';
+import { logExerciseToTodaysSession } from '../lib/db';
 import ExerciseDemoLoop from './ExerciseDemoLoop';
 import YouTubeEmbed from './YouTubeEmbed';
 import BodyMap from './BodyMap';
@@ -12,6 +16,24 @@ const EQUIPMENT_ICON: Record<string, string> = {
 };
 
 export default function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onClose: () => void }) {
+  const [sets, setSets] = useState(exercise.defaultSets);
+  const [reps, setReps] = useState(exercise.defaultReps);
+  const [weight, setWeight] = useState('');
+  const [logged, setLogged] = useState(false);
+
+  const handleLog = async () => {
+    const pid = getActiveProfileId();
+    const today = dayjs().format('YYYY-MM-DD');
+    await logExerciseToTodaysSession(pid, today, {
+      exercise: exercise.name,
+      sets,
+      reps,
+      weight: parseFloat(weight) || 0,
+    });
+    setLogged(true);
+    setTimeout(() => setLogged(false), 2500);
+  };
+
   return (
     <div className="space-y-4">
       <button className="btn-secondary btn-sm" onClick={onClose}>
@@ -73,8 +95,42 @@ export default function ExerciseDetail({ exercise, onClose }: { exercise: Exerci
         <p>{exercise.mistakes}</p>
       </Section>
 
-      <div className="rounded-xl bg-surface2 p-3 text-center text-sm">
-        Recommended: <strong>{exercise.defaultSets} sets × {exercise.defaultReps} reps</strong>
+      <div className="rounded-xl border border-accent/30 bg-surface2 p-4 card-glow">
+        <h4 className="mb-1 text-sm font-semibold">📝 Log Your Sets</h4>
+        <p className="mb-3 text-xs text-text-muted">
+          Recommended: <strong>{exercise.defaultSets} sets × {exercise.defaultReps} reps</strong> — adjust below and log
+          straight to today's session.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="block">
+            <span className="mb-1 block text-xs text-text-muted">Sets</span>
+            <input type="number" min={1} className="input" value={sets} onChange={(e) => setSets(+e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-text-muted">Reps</span>
+            <input type="number" min={1} className="input" value={reps} onChange={(e) => setReps(+e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-text-muted">Weight (kg)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              className="input"
+              placeholder="0"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+            />
+          </label>
+        </div>
+        <button className="btn-primary mt-3 w-full" onClick={handleLog}>
+          + Log this exercise
+        </button>
+        {logged && (
+          <div className="mt-2 rounded-lg bg-success/10 p-2 text-center text-sm text-success">
+            ✓ Logged {sets} × {reps} {weight ? `@ ${weight}kg` : ''} to today's session
+          </div>
+        )}
       </div>
     </div>
   );

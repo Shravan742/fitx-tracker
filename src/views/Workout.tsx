@@ -126,7 +126,15 @@ export default function Workout() {
   };
 
   if (selectedExercise) {
-    return <ExerciseDetail exercise={selectedExercise} onClose={() => setSelectedExercise(null)} />;
+    return (
+      <ExerciseDetail
+        exercise={selectedExercise}
+        onClose={() => {
+          setSelectedExercise(null);
+          reloadData();
+        }}
+      />
+    );
   }
 
   return (
