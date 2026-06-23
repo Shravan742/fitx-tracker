@@ -5457,6 +5457,146 @@ const recipes: Recipe[] = [
       'Toss pasta through the sauce with a drizzle of oil.',
     ],
   },
+
+  // ── QUARK — GERMANY'S ULTRA-CHEAP HIGH-PROTEIN STAPLE ────────────────────────
+  // Magerquark (low-fat quark) is ~€0.22/100g at Aldi/Lidl with ~12g protein per
+  // 100g — one of the cheapest protein sources available, a budget bodybuilding
+  // staple. These recipes lean on it heavily to hit protein targets affordably.
+  {
+    name: 'Quark, Oats & Honey Bowl',
+    cuisine: 'German', diet: 'vegetarian', mealType: 'breakfast',
+    photo: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Quark', grams: 250 },
+      { item: 'Rolled oats (dry)', grams: 60 },
+      { item: 'Honey', grams: 15 },
+      { item: 'Banana', grams: 100 },
+    ],
+    macros: { calories: 480, protein: 36, carbs: 66, fat: 8 },
+    instructions: [
+      'Stir oats into the quark and let sit 5 minutes to soften.',
+      'Top with sliced banana and a drizzle of honey.',
+    ],
+  },
+  {
+    name: 'High-Protein Quark Bowl',
+    cuisine: 'German', diet: 'vegetarian', mealType: 'snack',
+    photo: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Quark', grams: 300 },
+      { item: 'Honey', grams: 10 },
+      { item: 'Cinnamon', grams: 1 },
+    ],
+    macros: { calories: 260, protein: 38, carbs: 22, fat: 3 },
+    instructions: [
+      'Stir honey and cinnamon through the quark.',
+      'Serve chilled.',
+    ],
+  },
+  {
+    name: 'Savoury Herb Quark with Potatoes',
+    cuisine: 'German', diet: 'vegetarian', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1518013431117-eb1465fa5752?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Potato', grams: 350 },
+      { item: 'Quark', grams: 200 },
+      { item: 'Chives', grams: 10 },
+      { item: 'Olive oil', grams: 10 },
+    ],
+    macros: { calories: 480, protein: 28, carbs: 70, fat: 10 },
+    instructions: [
+      'Boil potatoes (jacket-on or peeled) until tender, about 18-20 minutes.',
+      'Mix quark with chopped chives, a drizzle of olive oil, salt and pepper.',
+      'Serve the potatoes with the herb quark dip — a classic German "Kartoffeln mit Quark".',
+    ],
+  },
+  {
+    name: 'Quark Protein Pancakes',
+    cuisine: 'German', diet: 'vegetarian', mealType: 'breakfast',
+    photo: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Quark', grams: 200 },
+      { item: 'Eggs', grams: 100 },
+      { item: 'Rolled oats (dry)', grams: 50 },
+      { item: 'Cinnamon', grams: 1 },
+    ],
+    macros: { calories: 420, protein: 36, carbs: 38, fat: 12 },
+    instructions: [
+      'Blend quark, eggs, oats and cinnamon into a smooth batter.',
+      'Cook small rounds in a non-stick pan, 2 minutes per side, until golden.',
+    ],
+  },
+  {
+    name: 'Quark & Lentil Power Bowl',
+    cuisine: 'German', diet: 'vegetarian', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Red lentils (dry)', grams: 100 },
+      { item: 'Quark', grams: 150 },
+      { item: 'Carrot', grams: 60 },
+      { item: 'Olive oil', grams: 10 },
+    ],
+    macros: { calories: 520, protein: 40, carbs: 64, fat: 12 },
+    instructions: [
+      'Simmer lentils with diced carrot in water until soft, about 18 minutes. Drain.',
+      'Stir through the quark and olive oil while still warm, season well.',
+    ],
+  },
+  {
+    name: 'Frozen Veg & Egg Scramble',
+    cuisine: 'Western', diet: 'vegetarian', mealType: 'dinner',
+    photo: 'https://images.unsplash.com/photo-1510693206972-df098062cb71?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Eggs', grams: 200 },
+      { item: 'Frozen mixed veg', grams: 200 },
+      { item: 'Oil', grams: 10 },
+    ],
+    macros: { calories: 380, protein: 28, carbs: 18, fat: 22 },
+    instructions: [
+      'Cook frozen mixed veg in oil for 5 minutes until tender.',
+      'Beat eggs, pour into the pan, and scramble together until just set.',
+    ],
+  },
+  {
+    name: 'Canned Mackerel & Rice, Big Bowl',
+    cuisine: 'Western', diet: 'fish', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'Canned mackerel', grams: 180 },
+      { item: 'Rice (dry)', grams: 130 },
+      { item: 'Frozen peas & corn', grams: 80 },
+    ],
+    macros: { calories: 720, protein: 40, carbs: 96, fat: 18 },
+    instructions: [
+      'Cook rice according to packet instructions, stirring in frozen peas for the last 3 minutes.',
+      'Flake mackerel over the rice and serve.',
+    ],
+  },
+  {
+    name: 'Budget Egg & Bean Bowl',
+    cuisine: 'Western', diet: 'vegan', mealType: 'lunch',
+    photo: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80',
+    servings: 1,
+    ingredients: [
+      { item: 'White beans (cooked)', grams: 250 },
+      { item: 'Rice (dry)', grams: 100 },
+      { item: 'Crushed tomatoes', grams: 150 },
+      { item: 'Oil', grams: 10 },
+    ],
+    macros: { calories: 620, protein: 26, carbs: 102, fat: 10 },
+    instructions: [
+      'Cook rice according to packet instructions.',
+      'Simmer beans in crushed tomatoes for 10 minutes, season well.',
+      'Serve over rice.',
+    ],
+  },
 ];
 
 export default recipes;
