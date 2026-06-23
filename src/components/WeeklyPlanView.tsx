@@ -18,7 +18,10 @@ export default function WeeklyPlanView({
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const today = dayjs().format('YYYY-MM-DD');
 
-  const weekPlan = useMemo(() => generateWeeklyPlan(diets, targets, today), [diets, targets, today]);
+  const weekPlan = useMemo(
+    () => generateWeeklyPlan(diets, targets, today, weeklyBudget),
+    [diets, targets, today, weeklyBudget],
+  );
   const shoppingList = useMemo(() => buildShoppingList(weekPlan), [weekPlan]);
 
   const overBudget = shoppingList.totalCost > weeklyBudget;
@@ -50,8 +53,8 @@ export default function WeeklyPlanView({
         </div>
         <p className={`mt-2 text-xs ${overBudget ? 'text-warn' : 'text-success'}`}>
           {overBudget
-            ? `€${diff} over budget — try swapping a few meals for cheaper diet options.`
-            : `€${diff} under budget ✓`}
+            ? `€${diff} over budget even after picking cheaper recipes where possible — raise your budget or switch to more vegan/vegetarian options for a bigger drop.`
+            : `€${diff} under budget ✓ — plan already favors cheaper recipes within your macros.`}
         </p>
       </Card>
 

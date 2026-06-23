@@ -59,7 +59,7 @@ export default function Meals() {
         const s = await getYesterdaySurplus(pid, baseTargets);
         setSurplus(s);
         const targets = adjustTargetsForSurplus(baseTargets, s);
-        setPlan(loadPlan(pid, today, activeDiets, targets));
+        setPlan(loadPlan(pid, today, activeDiets, targets, profile.weeklyBudget));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +121,7 @@ export default function Meals() {
   };
 
   const handleSwap = (slotIdx: number) => {
-    const updated = swapSlot(pid, today, activeDiets, slotIdx, targets);
+    const updated = swapSlot(pid, today, activeDiets, slotIdx, targets, profile?.weeklyBudget);
     setPlan(updated);
   };
 

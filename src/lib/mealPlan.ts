@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import recipes from '../data/recipes';
 import type { Diet, Macros, PlanEntry, Recipe } from '../types';
 import { getMealsForDate } from './db';
+import { estimateSlotCost } from './recipeCost';
 
 interface MealSlot {
   key: string;
@@ -17,6 +18,10 @@ export const MEAL_SLOTS: MealSlot[] = [
   { key: 'snack', label: 'Evening Snack', icon: '🍎', ratio: 0.09, types: ['snack'] },
   { key: 'dinner', label: 'Dinner', icon: '🌙', ratio: 0.28, types: ['dinner', 'any'] },
 ];
+
+// How strongly an over-budget recipe is penalized relative to macro fit (calErr+proErr).
+// Tuned so cost steers selection among similarly-good macro fits without wrecking targets.
+const COST_PENALTY_WEIGHT = 0.5;
 
 export function getFiltered(diets: Diet[]): Recipe[] {
   if (!diets.length) return recipes;
@@ -40,27 +45,39 @@ export function scaledMacros(r: Recipe, scale: number) {
   };
 }
 
-export function getPlanKey(profileId: string, date: string, diets: Diet[], targets?: Macros | null): string {
+export function getPlanKey(
+  profileId: string,
+  date: string,
+  diets: Diet[],
+  targets?: Macros | null,
+  weeklyBudget?: number,
+): string {
   const macroSig = targets ? `_${targets.calories}` : '';
-  return `fitx_plan_v5_${profileId}_${date}_${[...diets].sort().join(',') || 'all'}${macroSig}`;
+  const budgetSig = weeklyBudget ? `_b${weeklyBudget}` : '';
+  return `fitx_plan_v5_${profileId}_${date}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
 }
 
-function scoreCandidates(candidates: Recipe[], tgtCal: number, tgtPro: number, isSnack: boolean): Recipe[] {
-  return [...candidates].sort((a, b) => {
-    const scaleA = isSnack ? Math.min(1, scaleFor(a, tgtCal)) : scaleFor(a, tgtCal);
-    const scaleB = isSnack ? Math.min(1, scaleFor(b, tgtCal)) : scaleFor(b, tgtCal);
-    const calErrA = Math.abs(a.macros.calories * scaleA - tgtCal) / tgtCal;
-    const proErrA = Math.abs(a.macros.protein * scaleA - tgtPro) / Math.max(tgtPro, 1);
-    const calErrB = Math.abs(b.macros.calories * scaleB - tgtCal) / tgtCal;
-    const proErrB = Math.abs(b.macros.protein * scaleB - tgtPro) / Math.max(tgtPro, 1);
-    return calErrA + proErrA - (calErrB + proErrB);
-  });
+function scoreCandidates(candidates: Recipe[], tgtCal: number, tgtPro: number, isSnack: boolean, costAllowance?: number): Recipe[] {
+  const score = (r: Recipe) => {
+    const scale = isSnack ? Math.min(1, scaleFor(r, tgtCal)) : scaleFor(r, tgtCal);
+    const calErr = Math.abs(r.macros.calories * scale - tgtCal) / tgtCal;
+    const proErr = Math.abs(r.macros.protein * scale - tgtPro) / Math.max(tgtPro, 1);
+    let costErr = 0;
+    if (costAllowance != null) {
+      const cost = estimateSlotCost(r, scale);
+      costErr = Math.max(0, cost - costAllowance) / Math.max(costAllowance, 0.5);
+    }
+    return calErr + proErr + costErr * COST_PENALTY_WEIGHT;
+  };
+  return [...candidates].sort((a, b) => score(a) - score(b));
 }
 
 /**
  * Picks the best-fit recipe for a slot. `daySeed` rotates among the top-3 best-fitting,
  * preferring ones not in `excludeAcrossWeek` — gives day-to-day variety in a weekly plan
- * while seed=0 (today) always picks the single best fit, same as before.
+ * while seed=0 (today) always picks the single best fit. When `costAllowance` is set,
+ * candidates are scored with a cost-overage penalty so cheaper recipes win ties and
+ * close calls — the plan adapts to the weekly budget automatically.
  */
 function pickForSlot(
   candidates: Recipe[],
@@ -69,8 +86,9 @@ function pickForSlot(
   isSnack: boolean,
   excludeAcrossWeek: Set<Recipe>,
   daySeed: number,
+  costAllowance?: number,
 ): Recipe | undefined {
-  const sorted = scoreCandidates(candidates, tgtCal, tgtPro, isSnack);
+  const sorted = scoreCandidates(candidates, tgtCal, tgtPro, isSnack, costAllowance);
   const novel = sorted.filter((r) => !excludeAcrossWeek.has(r));
   const pool = novel.length ? novel : sorted;
   const topK = pool.slice(0, Math.min(3, pool.length));
@@ -78,22 +96,30 @@ function pickForSlot(
   return topK[daySeed % topK.length];
 }
 
-export function generatePlan(diets: Diet[], targets: Macros | null, daySeed = 0, excludeAcrossWeek = new Set<Recipe>()): PlanEntry[] {
+export function generatePlan(
+  diets: Diet[],
+  targets: Macros | null,
+  daySeed = 0,
+  excludeAcrossWeek = new Set<Recipe>(),
+  weeklyBudget?: number,
+): PlanEntry[] {
   const pool = getFiltered(diets);
   const totalCal = targets?.calories || 2000;
   const totalPro = targets?.protein || 100;
+  const dailyBudget = weeklyBudget && weeklyBudget > 0 ? weeklyBudget / 7 : undefined;
   const usedToday = new Set<Recipe>();
 
   return MEAL_SLOTS.map((slot) => {
     const isSnack = slot.key === 'snack';
     const tgtCal = Math.round(totalCal * slot.ratio);
     const tgtPro = Math.round(totalPro * slot.ratio);
+    const costAllowance = dailyBudget != null ? dailyBudget * slot.ratio : undefined;
 
     const typed = pool.filter((r) => slot.types.includes(r.mealType) && !usedToday.has(r));
     const fallback = pool.filter((r) => !usedToday.has(r));
     const candidates = typed.length ? typed : fallback;
 
-    const pick = pickForSlot(candidates, tgtCal, tgtPro, isSnack, excludeAcrossWeek, daySeed);
+    const pick = pickForSlot(candidates, tgtCal, tgtPro, isSnack, excludeAcrossWeek, daySeed, costAllowance);
 
     const scale = pick ? (isSnack ? Math.min(1, scaleFor(pick, tgtCal)) : scaleFor(pick, tgtCal)) : 1;
     if (pick) usedToday.add(pick);
@@ -106,14 +132,19 @@ export interface DayPlan {
   plan: PlanEntry[];
 }
 
-/** Generates a 7-day plan starting today, with day-to-day recipe variety for shopping-list purposes. */
-export function generateWeeklyPlan(diets: Diet[], targets: Macros | null, startDate: string): DayPlan[] {
+/** Generates a 7-day plan starting today, with day-to-day recipe variety and budget-aware picks. */
+export function generateWeeklyPlan(
+  diets: Diet[],
+  targets: Macros | null,
+  startDate: string,
+  weeklyBudget?: number,
+): DayPlan[] {
   const usedAcrossWeek = new Set<Recipe>();
   const days: DayPlan[] = [];
 
   for (let i = 0; i < 7; i++) {
     const date = dayjs(startDate).add(i, 'day').format('YYYY-MM-DD');
-    const plan = generatePlan(diets, targets, i, usedAcrossWeek);
+    const plan = generatePlan(diets, targets, i, usedAcrossWeek, weeklyBudget);
     plan.forEach((p) => {
       const r = recipes[p.recipeIdx];
       if (r) usedAcrossWeek.add(r);
@@ -124,15 +155,21 @@ export function generateWeeklyPlan(diets: Diet[], targets: Macros | null, startD
   return days;
 }
 
-export function loadPlan(profileId: string, date: string, diets: Diet[], targets: Macros | null): PlanEntry[] {
-  const key = getPlanKey(profileId, date, diets, targets);
+export function loadPlan(
+  profileId: string,
+  date: string,
+  diets: Diet[],
+  targets: Macros | null,
+  weeklyBudget?: number,
+): PlanEntry[] {
+  const key = getPlanKey(profileId, date, diets, targets, weeklyBudget);
   try {
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
     if (saved && saved.length === MEAL_SLOTS.length) return saved;
   } catch {
     /* ignore */
   }
-  const plan = generatePlan(diets, targets);
+  const plan = generatePlan(diets, targets, 0, new Set(), weeklyBudget);
   localStorage.setItem(key, JSON.stringify(plan));
   return plan;
 }
@@ -143,9 +180,10 @@ export function swapSlot(
   diets: Diet[],
   slotIdx: number,
   targets: Macros | null,
+  weeklyBudget?: number,
 ): PlanEntry[] {
-  const key = getPlanKey(profileId, date, diets, targets);
-  const plan = loadPlan(profileId, date, diets, targets);
+  const key = getPlanKey(profileId, date, diets, targets, weeklyBudget);
+  const plan = loadPlan(profileId, date, diets, targets, weeklyBudget);
   const pool = getFiltered(diets);
   const slot = MEAL_SLOTS[slotIdx];
 
