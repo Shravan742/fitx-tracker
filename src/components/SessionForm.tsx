@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import exercises from '../data/exercises';
-import { addSession } from '../lib/db';
+import { addSession, getSessionForDate, updateSession } from '../lib/db';
 import type { WorkoutSet } from '../types';
 
 interface DraftEntry extends WorkoutSet {
@@ -39,12 +39,26 @@ export default function SessionForm({
       alert('Add at least one exercise.');
       return;
     }
-    await addSession({
-      profileId: pid,
-      date,
-      entries: entries.map((e) => ({ exercise: e.exercise, sets: e.sets, reps: e.reps, weight: e.weight })),
-      notes,
-    });
+    const newEntries: WorkoutSet[] = entries.map((e) => ({
+      exercise: e.exercise,
+      sets: e.sets,
+      reps: e.reps,
+      weight: e.weight,
+    }));
+
+    // Merge into today's existing session (e.g. one started by quick-logging an
+    // exercise from its detail view) instead of creating a second row for the
+    // same day, which would fragment Recent Sessions and the 1RM suggestions.
+    const existing = await getSessionForDate(pid, date);
+    if (existing) {
+      await updateSession({
+        ...existing,
+        entries: [...existing.entries, ...newEntries],
+        notes: notes || existing.notes,
+      });
+    } else {
+      await addSession({ profileId: pid, date, entries: newEntries, notes });
+    }
     onDone();
   };
 
