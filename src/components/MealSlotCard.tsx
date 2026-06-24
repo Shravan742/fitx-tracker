@@ -11,6 +11,11 @@ const DIET_COLOR: Record<string, string> = {
   vegan: '#84cc16',
 };
 
+export interface ServingSplit {
+  name: string;
+  servings: number;
+}
+
 export default function MealSlotCard({
   slotIcon,
   slotLabel,
@@ -21,6 +26,7 @@ export default function MealSlotCard({
   isLogged,
   onSwap,
   onLog,
+  servingSplit,
 }: {
   slotIcon: string;
   slotLabel: string;
@@ -31,6 +37,7 @@ export default function MealSlotCard({
   isLogged: boolean;
   onSwap: () => void;
   onLog: () => void;
+  servingSplit?: ServingSplit[];
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const m = scaledMacros(recipe, scale);
@@ -72,6 +79,15 @@ export default function MealSlotCard({
             <span>🌾 C{m.carbs}g</span>
             <span>🧈 F{m.fat}g</span>
           </div>
+          {servingSplit && servingSplit.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {servingSplit.map((s) => (
+                <span key={s.name} className="rounded-full bg-info/15 px-2 py-0.5 text-[0.68rem] font-medium text-info">
+                  👤 {s.name}: {s.servings}×
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

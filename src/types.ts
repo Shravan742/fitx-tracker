@@ -114,6 +114,11 @@ export interface PlanEntry {
   scale: number;
 }
 
+export interface Household {
+  memberIds: [string, string];
+  dietPreferences: Diet[];
+}
+
 export type EquipmentType = 'Barbell' | 'Dumbbell' | 'Cable' | 'Machine' | 'Bodyweight';
 export type MuscleGroup = 'Chest' | 'Back' | 'Shoulders' | 'Legs' | 'Biceps' | 'Triceps' | 'Core';
 

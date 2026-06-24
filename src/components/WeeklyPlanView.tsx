@@ -5,18 +5,28 @@ import type { Diet, Macros } from '../types';
 import { MEAL_SLOTS, loadWeeklyPlanCached, swapWeeklySlot, scaledMacros, type DayPlan } from '../lib/mealPlan';
 import { buildShoppingList } from '../lib/shoppingList';
 import { getActiveProfileId, getShoppingChecklist, toggleShoppingItem } from '../lib/storage';
+import { splitServings } from '../lib/household';
 import Card from './Card';
+
+export interface HouseholdMember {
+  name: string;
+  caloriesPerDay: number;
+}
 
 export default function WeeklyPlanView({
   diets,
   targets,
   weeklyBudget,
+  planOwnerId,
+  householdMembers,
 }: {
   diets: Diet[];
   targets: Macros;
   weeklyBudget: number;
+  planOwnerId?: string;
+  householdMembers?: HouseholdMember[];
 }) {
-  const pid = getActiveProfileId();
+  const pid = planOwnerId ?? getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [weekPlan, setWeekPlan] = useState<DayPlan[]>([]);
@@ -117,21 +127,41 @@ export default function WeeklyPlanView({
                     if (!r) return null;
                     const m = scaledMacros(r, p.scale ?? 1);
                     const slot = MEAL_SLOTS[slotIdx];
+                    const splits = householdMembers
+                      ? splitServings(
+                          householdMembers.map((mem) => mem.caloriesPerDay * slot.ratio),
+                          r.macros.calories,
+                        )
+                      : null;
                     return (
-                      <div key={slotIdx} className="flex items-center justify-between gap-2 text-sm">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[0.65rem] uppercase tracking-wide text-text-muted">
-                            {slot.icon} {slot.label}
+                      <div key={slotIdx} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[0.65rem] uppercase tracking-wide text-text-muted">
+                              {slot.icon} {slot.label}
+                            </div>
+                            <div className="truncate">{r.name}</div>
                           </div>
-                          <div className="truncate">{r.name}</div>
+                          <span className="whitespace-nowrap text-xs text-text-muted">{m.calories} kcal</span>
+                          <button
+                            className="btn-secondary btn-sm whitespace-nowrap"
+                            onClick={() => handleSwap(dayIndex, slotIdx)}
+                          >
+                            ↻ Swap
+                          </button>
                         </div>
-                        <span className="whitespace-nowrap text-xs text-text-muted">{m.calories} kcal</span>
-                        <button
-                          className="btn-secondary btn-sm whitespace-nowrap"
-                          onClick={() => handleSwap(dayIndex, slotIdx)}
-                        >
-                          ↻ Swap
-                        </button>
+                        {splits && householdMembers && (
+                          <div className="flex flex-wrap gap-1.5 pl-0">
+                            {householdMembers.map((mem, i) => (
+                              <span
+                                key={mem.name}
+                                className="rounded-full bg-info/15 px-2 py-0.5 text-[0.65rem] font-medium text-info"
+                              >
+                                👤 {mem.name}: {splits[i]}×
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

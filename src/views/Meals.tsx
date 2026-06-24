@@ -3,9 +3,9 @@ import dayjs from 'dayjs';
 import { useProfile } from '../lib/ProfileContext';
 import { calcMacros, applyDietProteinModifier } from '../lib/macros';
 import { getActiveProfileId } from '../lib/storage';
-import { addMeal, deleteMeal, getMealsForDate } from '../lib/db';
+import { addMeal, deleteMeal, getMealsForDate, getProfile } from '../lib/db';
 import recipes from '../data/recipes';
-import type { Diet, MealLog, PlanEntry } from '../types';
+import type { Diet, MealLog, PlanEntry, Profile } from '../types';
 import {
   MEAL_SLOTS,
   loadPlan,
@@ -15,6 +15,13 @@ import {
   adjustTargetsForSurplus,
   type MacroSurplus,
 } from '../lib/mealPlan';
+import {
+  HOUSEHOLD_MEMBER_IDS,
+  computeHouseholdMacros,
+  getHouseholdDietPreferences,
+  setHouseholdDietPreferences,
+  splitServings,
+} from '../lib/household';
 import Card from '../components/Card';
 import MealSlotCard from '../components/MealSlotCard';
 import WeeklyPlanView from '../components/WeeklyPlanView';
@@ -32,6 +39,7 @@ export default function Meals() {
   const { profile, saveProfile } = useProfile();
   const pid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
+  const partnerId = HOUSEHOLD_MEMBER_IDS.find((id) => id !== pid) ?? HOUSEHOLD_MEMBER_IDS[1];
 
   const [tab, setTab] = useState<'today' | 'week'>('today');
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
@@ -40,15 +48,30 @@ export default function Meals() {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customMeal, setCustomMeal] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' });
 
-  const activeDiets = profile?.dietPreferences ?? [];
+  const [householdMode, setHouseholdMode] = useState(false);
+  const [partnerProfile, setPartnerProfile] = useState<Profile | null>(null);
+  const [householdDiets, setHouseholdDiets] = useState<Diet[]>(getHouseholdDietPreferences());
+
+  useEffect(() => {
+    getProfile(partnerId).then((p) => setPartnerProfile(p ?? null));
+  }, [partnerId]);
+
+  const householdMacros = useMemo(
+    () => (profile && partnerProfile ? computeHouseholdMacros(profile, partnerProfile, householdDiets) : null),
+    [profile, partnerProfile, householdDiets],
+  );
+
+  const activeDiets = householdMode ? householdDiets : profile?.dietPreferences ?? [];
   const activeDietsKey = activeDiets.join(',');
+  const planOwnerId = householdMode ? 'household' : pid;
 
   const baseTargets = useMemo(() => {
+    if (householdMode) return householdMacros?.combined ?? null;
     const m = calcMacros(profile);
     if (!m) return null;
     return applyDietProteinModifier(m, activeDiets);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, activeDietsKey]);
+  }, [profile, activeDietsKey, householdMode, householdMacros]);
 
   useEffect(() => {
     if (!profile) return;
@@ -56,14 +79,20 @@ export default function Meals() {
       const meals = await getMealsForDate(pid, today);
       setTodayMeals(meals);
       if (baseTargets) {
-        const s = await getYesterdaySurplus(pid, baseTargets);
-        setSurplus(s);
-        const targets = adjustTargetsForSurplus(baseTargets, s);
-        setPlan(loadPlan(pid, today, activeDiets, targets, profile.weeklyBudget));
+        if (householdMode) {
+          // Surplus carryover is an individual concept — skip it for the shared plan.
+          setSurplus(null);
+          setPlan(loadPlan(planOwnerId, today, activeDiets, baseTargets, profile.weeklyBudget));
+        } else {
+          const s = await getYesterdaySurplus(pid, baseTargets);
+          setSurplus(s);
+          const targets = adjustTargetsForSurplus(baseTargets, s);
+          setPlan(loadPlan(planOwnerId, today, activeDiets, targets, profile.weeklyBudget));
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, pid, today, activeDietsKey, baseTargets]);
+  }, [profile, pid, today, activeDietsKey, baseTargets, householdMode, planOwnerId]);
 
   const targets = baseTargets ? adjustTargetsForSurplus(baseTargets, surplus) : null;
 
@@ -117,11 +146,16 @@ export default function Meals() {
       if (idx >= 0) diets.splice(idx, 1);
       else diets.push(diet);
     }
-    await saveProfile({ ...profile, dietPreferences: diets });
+    if (householdMode) {
+      setHouseholdDiets(diets);
+      setHouseholdDietPreferences(diets);
+    } else {
+      await saveProfile({ ...profile, dietPreferences: diets });
+    }
   };
 
   const handleSwap = (slotIdx: number) => {
-    const updated = swapSlot(pid, today, activeDiets, slotIdx, targets, profile?.weeklyBudget);
+    const updated = swapSlot(planOwnerId, today, activeDiets, slotIdx, targets, profile?.weeklyBudget);
     setPlan(updated);
   };
 
@@ -129,6 +163,34 @@ export default function Meals() {
     const p = plan[slotIdx];
     const r = recipes[p.recipeIdx];
     if (!r) return;
+
+    if (householdMode && householdMacros) {
+      // Log each person's own share to their own meal log, not the combined total.
+      const slot = MEAL_SLOTS[slotIdx];
+      const [memberA, memberB] = householdMacros.members;
+      const splits = splitServings(
+        [memberA.macros.calories * slot.ratio, memberB.macros.calories * slot.ratio],
+        r.macros.calories,
+      );
+      await Promise.all(
+        householdMacros.members.map((member, i) => {
+          const m = scaledMacros(r, splits[i]);
+          return addMeal({
+            profileId: member.profile.id,
+            date: today,
+            name: r.name,
+            calories: m.calories,
+            protein: m.protein,
+            carbs: m.carbs,
+            fat: m.fat,
+            loggedAt: new Date().toISOString(),
+          });
+        }),
+      );
+      setTodayMeals(await getMealsForDate(pid, today));
+      return;
+    }
+
     const m = scaledMacros(r, p.scale ?? 1);
     await addMeal({
       profileId: pid,
@@ -211,9 +273,41 @@ export default function Meals() {
         </button>
       </div>
 
+      {partnerProfile && (
+        <button
+          onClick={() => setHouseholdMode((v) => !v)}
+          className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+            householdMode ? 'border-accent bg-accent/10' : 'border-border bg-card'
+          }`}
+        >
+          <span className="text-sm font-semibold">
+            👥 Cook together with {partnerProfile.name}
+            {householdMode && <span className="ml-2 text-accent">· Active</span>}
+          </span>
+          <span className="text-text-muted">{householdMode ? '✓' : '○'}</span>
+        </button>
+      )}
+      {householdMode && householdMacros && (
+        <p className="text-xs text-text-muted">
+          Combined target: {householdMacros.combined.calories} kcal · {householdMacros.combined.protein}g protein —{' '}
+          {householdMacros.members[0].profile.name} needs {householdMacros.members[0].macros.calories} kcal,{' '}
+          {householdMacros.members[1].profile.name} needs {householdMacros.members[1].macros.calories} kcal.
+        </p>
+      )}
+
       {tab === 'week' ? (
         targets ? (
-          <WeeklyPlanView diets={activeDiets} targets={targets} weeklyBudget={profile.weeklyBudget ?? 0} />
+          <WeeklyPlanView
+            diets={activeDiets}
+            targets={targets}
+            weeklyBudget={profile.weeklyBudget ?? 0}
+            planOwnerId={planOwnerId}
+            householdMembers={
+              householdMode && householdMacros
+                ? householdMacros.members.map((mem) => ({ name: mem.profile.name, caloriesPerDay: mem.macros.calories }))
+                : undefined
+            }
+          />
         ) : (
           <Card>
             <p className="text-sm text-text-muted">Complete your profile to see a weekly meal plan.</p>
@@ -316,6 +410,16 @@ export default function Meals() {
               if (!r) return null;
               const tgtCal = Math.round(targets.calories * slot.ratio);
               const tgtPro = Math.round(targets.protein * slot.ratio);
+              const servingSplit =
+                householdMode && householdMacros
+                  ? (() => {
+                      const splits = splitServings(
+                        householdMacros.members.map((mem) => mem.macros.calories * slot.ratio),
+                        r.macros.calories,
+                      );
+                      return householdMacros.members.map((mem, i) => ({ name: mem.profile.name, servings: splits[i] }));
+                    })()
+                  : undefined;
               return (
                 <MealSlotCard
                   key={slot.key}
@@ -328,6 +432,7 @@ export default function Meals() {
                   isLogged={loggedNames.has(r.name)}
                   onSwap={() => handleSwap(idx)}
                   onLog={() => handleLogPlanItem(idx)}
+                  servingSplit={servingSplit}
                 />
               );
             })}
