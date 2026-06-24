@@ -20,6 +20,8 @@ import {
   computeHouseholdMacros,
   getHouseholdDietPreferences,
   setHouseholdDietPreferences,
+  getHouseholdBudget,
+  setHouseholdBudget,
   splitServings,
 } from '../lib/household';
 import Card from '../components/Card';
@@ -43,6 +45,7 @@ export default function Meals() {
 
   const [tab, setTab] = useState<'today' | 'week'>('today');
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
+  const [partnerMeals, setPartnerMeals] = useState<MealLog[]>([]);
   const [surplus, setSurplus] = useState<MacroSurplus | null>(null);
   const [plan, setPlan] = useState<PlanEntry[]>([]);
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -50,6 +53,7 @@ export default function Meals() {
 
   const [householdMode, setHouseholdMode] = useState(false);
   const [partnerProfile, setPartnerProfile] = useState<Profile | null>(null);
+  const [householdBudgetInput, setHouseholdBudgetInput] = useState('');
   const [householdDiets, setHouseholdDiets] = useState<Diet[]>(getHouseholdDietPreferences());
 
   useEffect(() => {
@@ -64,6 +68,9 @@ export default function Meals() {
   const activeDiets = householdMode ? householdDiets : profile?.dietPreferences ?? [];
   const activeDietsKey = activeDiets.join(',');
   const planOwnerId = householdMode ? 'household' : pid;
+  // The shared plan must use one shared budget regardless of which partner is currently
+  // logged in — see getHouseholdBudget for why this can't just be profile.weeklyBudget.
+  const effectiveBudget = householdMode ? getHouseholdBudget(profile?.weeklyBudget ?? 0) : profile?.weeklyBudget;
 
   const baseTargets = useMemo(() => {
     if (householdMode) return householdMacros?.combined ?? null;
@@ -78,37 +85,44 @@ export default function Meals() {
     (async () => {
       const meals = await getMealsForDate(pid, today);
       setTodayMeals(meals);
+      if (householdMode) {
+        setPartnerMeals(await getMealsForDate(partnerId, today));
+      } else {
+        setPartnerMeals([]);
+      }
       if (baseTargets) {
         if (householdMode) {
           // Surplus carryover is an individual concept — skip it for the shared plan.
           setSurplus(null);
-          setPlan(loadPlan(planOwnerId, today, activeDiets, baseTargets, profile.weeklyBudget));
+          setPlan(loadPlan(planOwnerId, today, activeDiets, baseTargets, effectiveBudget));
         } else {
           const s = await getYesterdaySurplus(pid, baseTargets);
           setSurplus(s);
           const targets = adjustTargetsForSurplus(baseTargets, s);
-          setPlan(loadPlan(planOwnerId, today, activeDiets, targets, profile.weeklyBudget));
+          setPlan(loadPlan(planOwnerId, today, activeDiets, targets, effectiveBudget));
         }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, pid, today, activeDietsKey, baseTargets, householdMode, planOwnerId]);
+  }, [profile, pid, partnerId, today, activeDietsKey, baseTargets, householdMode, planOwnerId, effectiveBudget]);
 
   const targets = baseTargets ? adjustTargetsForSurplus(baseTargets, surplus) : null;
 
-  const eaten = useMemo(
-    () =>
-      todayMeals.reduce(
-        (a, m) => ({
-          calories: a.calories + (m.calories || 0),
-          protein: a.protein + (m.protein || 0),
-          carbs: a.carbs + (m.carbs || 0),
-          fat: a.fat + (m.fat || 0),
-        }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 },
-      ),
-    [todayMeals],
-  );
+  const eaten = useMemo(() => {
+    // In household mode the target is the combined total, so "eaten" must be both
+    // people's logged meals combined too — otherwise "remaining" looks far too generous
+    // since it would ignore everything the partner already ate today.
+    const combined = householdMode ? [...todayMeals, ...partnerMeals] : todayMeals;
+    return combined.reduce(
+      (a, m) => ({
+        calories: a.calories + (m.calories || 0),
+        protein: a.protein + (m.protein || 0),
+        carbs: a.carbs + (m.carbs || 0),
+        fat: a.fat + (m.fat || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    );
+  }, [todayMeals, partnerMeals, householdMode]);
 
   const remaining = targets
     ? {
@@ -119,7 +133,9 @@ export default function Meals() {
       }
     : null;
 
-  const loggedNames = new Set(todayMeals.map((m) => m.name));
+  const loggedNames = new Set(
+    (householdMode ? [...todayMeals, ...partnerMeals] : todayMeals).map((m) => m.name),
+  );
 
   const planTotals = useMemo(() => {
     const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -155,7 +171,7 @@ export default function Meals() {
   };
 
   const handleSwap = (slotIdx: number) => {
-    const updated = swapSlot(planOwnerId, today, activeDiets, slotIdx, targets, profile?.weeklyBudget);
+    const updated = swapSlot(planOwnerId, today, activeDiets, slotIdx, targets, effectiveBudget);
     setPlan(updated);
   };
 
@@ -188,6 +204,7 @@ export default function Meals() {
         }),
       );
       setTodayMeals(await getMealsForDate(pid, today));
+      setPartnerMeals(await getMealsForDate(partnerId, today));
       return;
     }
 
@@ -288,11 +305,33 @@ export default function Meals() {
         </button>
       )}
       {householdMode && householdMacros && (
-        <p className="text-xs text-text-muted">
-          Combined target: {householdMacros.combined.calories} kcal · {householdMacros.combined.protein}g protein —{' '}
-          {householdMacros.members[0].profile.name} needs {householdMacros.members[0].macros.calories} kcal,{' '}
-          {householdMacros.members[1].profile.name} needs {householdMacros.members[1].macros.calories} kcal.
-        </p>
+        <>
+          <p className="text-xs text-text-muted">
+            Combined target: {householdMacros.combined.calories} kcal · {householdMacros.combined.protein}g protein —{' '}
+            {householdMacros.members[0].profile.name} needs {householdMacros.members[0].macros.calories} kcal,{' '}
+            {householdMacros.members[1].profile.name} needs {householdMacros.members[1].macros.calories} kcal.
+          </p>
+          <div className="flex items-center gap-2 rounded-xl bg-surface2 px-3 py-2">
+            <span className="text-xs text-text-muted whitespace-nowrap">Shared weekly budget (€)</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              className="input"
+              placeholder={String(effectiveBudget ?? 0)}
+              value={householdBudgetInput}
+              onChange={(e) => setHouseholdBudgetInput(e.target.value)}
+              onBlur={() => {
+                const val = parseFloat(householdBudgetInput);
+                if (val > 0) setHouseholdBudget(val);
+                setHouseholdBudgetInput('');
+              }}
+            />
+          </div>
+          <p className="text-[0.7rem] text-text-muted">
+            One shared budget for both of you — set once, applies no matter who's logged in.
+          </p>
+        </>
       )}
 
       {tab === 'week' ? (
@@ -300,7 +339,7 @@ export default function Meals() {
           <WeeklyPlanView
             diets={activeDiets}
             targets={targets}
-            weeklyBudget={profile.weeklyBudget ?? 0}
+            weeklyBudget={effectiveBudget ?? 0}
             planOwnerId={planOwnerId}
             householdMembers={
               householdMode && householdMacros
@@ -440,7 +479,7 @@ export default function Meals() {
         </>
       )}
 
-      {todayMeals.length > 0 && (
+      {(todayMeals.length > 0 || (householdMode && partnerMeals.length > 0)) && (
         <Card title="Today's Log">
           <div className="space-y-2">
             {todayMeals.map((m) => (
@@ -449,6 +488,7 @@ export default function Meals() {
                   <strong className="text-sm">{m.name}</strong>
                   <div className="text-xs text-text-muted">
                     {m.calories} kcal · P{m.protein}g · C{m.carbs}g · F{m.fat}g
+                    {householdMode && profile && <span> · {profile.name}</span>}
                   </div>
                 </div>
                 <button className="text-accent" onClick={() => handleDeleteMeal(m.id)}>
@@ -456,6 +496,17 @@ export default function Meals() {
                 </button>
               </div>
             ))}
+            {householdMode &&
+              partnerMeals.map((m) => (
+                <div key={`partner-${m.id}`} className="flex items-center justify-between rounded-lg bg-surface2/50 px-3 py-2 opacity-80">
+                  <div>
+                    <strong className="text-sm">{m.name}</strong>
+                    <div className="text-xs text-text-muted">
+                      {m.calories} kcal · P{m.protein}g · C{m.carbs}g · F{m.fat}g · {partnerProfile?.name}
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </Card>
       )}

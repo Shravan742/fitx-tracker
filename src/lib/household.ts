@@ -2,6 +2,7 @@ import type { Diet, Macros, Profile } from '../types';
 import { calcMacros, applyDietProteinModifier } from './macros';
 
 const HOUSEHOLD_DIET_KEY = 'fitx_household_diet';
+const HOUSEHOLD_BUDGET_KEY = 'fitx_household_budget';
 
 // The app's profile switcher only ever toggles between these two fixed IDs,
 // so a "household" is always this pair — no partner-linking UI needed.
@@ -17,6 +18,24 @@ export function getHouseholdDietPreferences(): Diet[] {
 
 export function setHouseholdDietPreferences(diets: Diet[]): void {
   localStorage.setItem(HOUSEHOLD_DIET_KEY, JSON.stringify(diets));
+}
+
+/**
+ * The household plan/shopping list is one shared cache, so its budget must be one
+ * shared value too — not whichever person's individual weeklyBudget happens to be
+ * active when they open the app, which would silently fragment into two different
+ * "shared" plans depending on who's logged in. Falls back to `fallback` (typically
+ * the current user's own budget) only until a household budget has been explicitly set.
+ */
+export function getHouseholdBudget(fallback: number): number {
+  const raw = localStorage.getItem(HOUSEHOLD_BUDGET_KEY);
+  if (raw == null) return fallback;
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function setHouseholdBudget(amount: number): void {
+  localStorage.setItem(HOUSEHOLD_BUDGET_KEY, String(amount));
 }
 
 export interface MemberMacros {
