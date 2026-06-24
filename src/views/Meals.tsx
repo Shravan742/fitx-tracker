@@ -61,8 +61,8 @@ export default function Meals() {
   }, [partnerId]);
 
   const householdMacros = useMemo(
-    () => (profile && partnerProfile ? computeHouseholdMacros(profile, partnerProfile, householdDiets) : null),
-    [profile, partnerProfile, householdDiets],
+    () => (profile && partnerProfile ? computeHouseholdMacros(profile, partnerProfile) : null),
+    [profile, partnerProfile],
   );
 
   const activeDiets = householdMode ? householdDiets : profile?.dietPreferences ?? [];

@@ -48,14 +48,22 @@ export interface HouseholdMacros {
   members: MemberMacros[];
 }
 
-/** Sums both members' individual macro targets (each with their own diet protein modifier applied). */
-export function computeHouseholdMacros(profileA: Profile, profileB: Profile, householdDiets: Diet[]): HouseholdMacros | null {
+/**
+ * Sums both members' individual macro targets. Each person's protein modifier comes
+ * from their OWN personal diet (profile.dietPreferences) — being vegetarian/vegan
+ * raises your own protein need regardless of what the household happens to be
+ * cooking tonight. Using the shared household diet filter here was the bug: it
+ * starts empty, so it silently dropped each person's own protein boost the moment
+ * household mode was turned on, making "combined protein" not actually equal
+ * "Shravan's protein + Gouri's protein" as shown on their own individual pages.
+ */
+export function computeHouseholdMacros(profileA: Profile, profileB: Profile): HouseholdMacros | null {
   const baseA = calcMacros(profileA);
   const baseB = calcMacros(profileB);
   if (!baseA || !baseB) return null;
 
-  const macrosA = applyDietProteinModifier(baseA, householdDiets);
-  const macrosB = applyDietProteinModifier(baseB, householdDiets);
+  const macrosA = applyDietProteinModifier(baseA, profileA.dietPreferences);
+  const macrosB = applyDietProteinModifier(baseB, profileB.dietPreferences);
 
   const combined: Macros = {
     calories: macrosA.calories + macrosB.calories,
