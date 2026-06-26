@@ -10,7 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
-import type { MealLog, OneRepMax, Profile, SleepLog, WorkoutSession } from '../types';
+import type { MealLog, OneRepMax, Profile, SleepLog, WeightEntry, WorkoutSession } from '../types';
 
 /**
  * Mirrors lib/db.ts's function signatures exactly, backed by Firestore instead of
@@ -98,4 +98,36 @@ export async function get1RMHistory(profileId: string, lift: string): Promise<On
 
 export async function save1RM(entry: Omit<OneRepMax, 'id'>): Promise<void> {
   await addDoc(collection(firestore, 'orm'), entry);
+}
+
+/** Weight entries are keyed deterministically by profileId+date so re-logging the
+ * same day overwrites rather than duplicates, mirroring the old localStorage behavior. */
+export async function getWeightHistory(profileId: string): Promise<WeightEntry[]> {
+  const q = query(collection(firestore, 'weights'), where('profileId', '==', profileId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => d.data() as WeightEntry & { profileId: string })
+    .map(({ date, weightKg }) => ({ date, weightKg }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function logWeight(profileId: string, date: string, weightKg: number): Promise<WeightEntry[]> {
+  await setDoc(doc(firestore, 'weights', `${profileId}_${date}`), { profileId, date, weightKg });
+  return getWeightHistory(profileId);
+}
+
+export async function getShoppingChecklist(profileId: string, startDate: string): Promise<Record<string, boolean>> {
+  const snap = await getDoc(doc(firestore, 'shoppingChecklists', `${profileId}_${startDate}`));
+  return snap.exists() ? ((snap.data().items as Record<string, boolean>) ?? {}) : {};
+}
+
+export async function toggleShoppingItem(
+  profileId: string,
+  startDate: string,
+  item: string,
+): Promise<Record<string, boolean>> {
+  const checklist = await getShoppingChecklist(profileId, startDate);
+  checklist[item] = !checklist[item];
+  await setDoc(doc(firestore, 'shoppingChecklists', `${profileId}_${startDate}`), { profileId, items: checklist });
+  return checklist;
 }

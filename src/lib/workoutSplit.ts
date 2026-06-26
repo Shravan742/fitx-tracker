@@ -20,12 +20,15 @@ const SPLIT_CYCLES: Record<SplitType, DayType[]> = {
   ppl: ['Push', 'Pull', 'Legs'],
 };
 
+// Core is included on every training day type (not just Legs) — standard programming
+// trains core 2-3x/week, and a PPL split was only ever hitting it once (Leg day),
+// leaving Push/Pull days with zero core work for the whole week.
 const TYPE_MUSCLES: Record<DayType, MuscleGroup[]> = {
   'Full Body': ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core'],
-  Upper: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+  Upper: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Core'],
   Lower: ['Legs', 'Core'],
-  Push: ['Chest', 'Shoulders', 'Triceps'],
-  Pull: ['Back', 'Biceps'],
+  Push: ['Chest', 'Shoulders', 'Triceps', 'Core'],
+  Pull: ['Back', 'Biceps', 'Core'],
   Legs: ['Legs', 'Core'],
 };
 

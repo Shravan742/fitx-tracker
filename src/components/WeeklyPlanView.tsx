@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import recipes from '../data/recipes';
+import { getRecipeById } from '../lib/recipesCache';
 import type { Diet, Macros } from '../types';
 import { MEAL_SLOTS, loadWeeklyPlanCached, swapWeeklySlot, scaledMacros, type DayPlan } from '../lib/mealPlan';
 import { buildShoppingList } from '../lib/shoppingList';
-import { getActiveProfileId, getShoppingChecklist, toggleShoppingItem } from '../lib/storage';
+import { getActiveProfileId } from '../lib/storage';
+import { getShoppingChecklist, toggleShoppingItem } from '../lib/firestoreDb';
 import { splitServings } from '../lib/household';
 import Card from './Card';
 import { ProgressBar, AnimatedNumber, StaggerList, StaggerItem } from './motion';
@@ -29,6 +30,10 @@ export default function WeeklyPlanView({
   householdMembers?: HouseholdMember[];
 }) {
   const pid = planOwnerId ?? getActiveProfileId();
+  // The shopping checklist is genuinely per-account data in Firestore (security rules
+  // require profileId == the caller's real uid), so it can't use the synthetic
+  // 'household' string that the plan cache key uses — always the real signed-in uid.
+  const myUid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [weekPlan, setWeekPlan] = useState<DayPlan[]>([]);
@@ -36,9 +41,9 @@ export default function WeeklyPlanView({
 
   useEffect(() => {
     setWeekPlan(loadWeeklyPlanCached(pid, today, diets, targets, weeklyBudget));
-    setChecklist(getShoppingChecklist(pid, today));
+    getShoppingChecklist(myUid, today).then(setChecklist);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pid, today, JSON.stringify(diets), targets.calories, weeklyBudget]);
+  }, [pid, myUid, today, JSON.stringify(diets), targets.calories, weeklyBudget]);
 
   const shoppingList = useMemo(() => buildShoppingList(weekPlan), [weekPlan]);
 
@@ -50,8 +55,8 @@ export default function WeeklyPlanView({
     setWeekPlan([...updated]);
   };
 
-  const handleToggleItem = (item: string) => {
-    setChecklist(toggleShoppingItem(pid, today, item));
+  const handleToggleItem = async (item: string) => {
+    setChecklist(await toggleShoppingItem(myUid, today, item));
   };
 
   const boughtCount = shoppingList.items.filter((i) => checklist[i.item]).length;
@@ -98,7 +103,7 @@ export default function WeeklyPlanView({
           const isOpen = expandedDay === date;
           const dayTotals = plan.reduce(
             (acc, p) => {
-              const r = recipes[p.recipeIdx];
+              const r = getRecipeById(p.recipeId);
               if (!r) return acc;
               const m = scaledMacros(r, p.scale ?? 1);
               return { calories: acc.calories + m.calories, protein: acc.protein + m.protein };
@@ -133,7 +138,7 @@ export default function WeeklyPlanView({
                   className="space-y-2 border-t border-border px-4 py-3"
                 >
                   {plan.map((p, slotIdx) => {
-                    const r = recipes[p.recipeIdx];
+                    const r = getRecipeById(p.recipeId);
                     if (!r) return null;
                     const m = scaledMacros(r, p.scale ?? 1);
                     const slot = MEAL_SLOTS[slotIdx];

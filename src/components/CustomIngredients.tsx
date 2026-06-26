@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   getCustomIngredients,
+  loadCustomIngredients,
   addCustomIngredient,
   updateCustomIngredient,
   deleteCustomIngredient,
@@ -17,17 +18,23 @@ type BuilderRow = { ingredientId: string; grams: string };
 
 export default function CustomIngredients({
   profileId,
+  partnerUid,
   date,
   onLogged,
   onIngredientsChanged,
 }: {
   profileId: string;
+  partnerUid: string | null;
   date: string;
   onLogged: () => void;
   onIngredientsChanged?: () => void;
 }) {
   const [ingredients, setIngredients] = useState<CustomIngredient[]>(getCustomIngredients);
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    loadCustomIngredients(profileId, partnerUid).then(() => setIngredients(getCustomIngredients()));
+  }, [profileId, partnerUid]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '', price: '' });
@@ -51,7 +58,7 @@ export default function CustomIngredients({
     setShowAddForm(true);
   };
 
-  const handleSaveIngredient = (e: React.FormEvent) => {
+  const handleSaveIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     const payload = {
@@ -63,9 +70,9 @@ export default function CustomIngredients({
       pricePer100: form.price ? +form.price : undefined,
     };
     if (editingId) {
-      updateCustomIngredient(editingId, payload);
+      await updateCustomIngredient(profileId, partnerUid, editingId, payload);
     } else {
-      addCustomIngredient(payload);
+      await addCustomIngredient(profileId, partnerUid, payload);
     }
     setIngredients(getCustomIngredients());
     setForm(emptyForm);
@@ -80,8 +87,8 @@ export default function CustomIngredients({
     setShowAddForm(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteCustomIngredient(id);
+  const handleDelete = async (id: string) => {
+    await deleteCustomIngredient(profileId, partnerUid, id);
     setIngredients(getCustomIngredients());
     setRows((r) => r.filter((row) => row.ingredientId !== id));
     onIngredientsChanged?.();
@@ -156,37 +163,45 @@ export default function CustomIngredients({
         <div className="mt-3">
       {ingredients.length > 0 && (
         <StaggerList className="mb-3 space-y-1.5">
-          {ingredients.map((ing) => (
-            <StaggerItem key={ing.id}>
-              <div className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2 text-sm">
-                <div>
-                  <span className="font-semibold">{ing.name}</span>
-                  <span className="ml-2 text-xs text-text-muted">
-                    {ing.kcalPer100}kcal · P{ing.proteinPer100}g · C{ing.carbsPer100}g · F{ing.fatPer100}g /100g
-                    {ing.pricePer100 != null ? ` · €${ing.pricePer100.toFixed(2)}/100g` : ''}
-                  </span>
+          {ingredients.map((ing) => {
+            const mine = ing.profileId === profileId;
+            return (
+              <StaggerItem key={ing.id}>
+                <div className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2 text-sm">
+                  <div>
+                    <span className="font-semibold">{ing.name}</span>
+                    {!mine && (
+                      <span className="ml-2 rounded-full bg-info/15 px-1.5 py-0.5 text-[0.6rem] text-info">partner's</span>
+                    )}
+                    <span className="ml-2 text-xs text-text-muted">
+                      {ing.kcalPer100}kcal · P{ing.proteinPer100}g · C{ing.carbsPer100}g · F{ing.fatPer100}g /100g
+                      {ing.pricePer100 != null ? ` · €${ing.pricePer100.toFixed(2)}/100g` : ''}
+                    </span>
+                  </div>
+                  {mine && (
+                    <div className="flex shrink-0 items-center gap-3">
+                      <button
+                        type="button"
+                        aria-label="Edit ingredient"
+                        className="text-text-muted transition-colors hover:text-accent"
+                        onClick={() => startEdit(ing)}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Delete ingredient"
+                        className="text-text-muted transition-colors hover:text-danger"
+                        onClick={() => handleDelete(ing.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <button
-                    type="button"
-                    aria-label="Edit ingredient"
-                    className="text-text-muted transition-colors hover:text-accent"
-                    onClick={() => startEdit(ing)}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Delete ingredient"
-                    className="text-text-muted transition-colors hover:text-danger"
-                    onClick={() => handleDelete(ing.id)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </StaggerItem>
-          ))}
+              </StaggerItem>
+            );
+          })}
         </StaggerList>
       )}
 

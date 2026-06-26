@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../lib/ProfileContext';
 import { calcMacros } from '../lib/macros';
-import { getMealsForDate, getSleepLogs, putProfile } from '../lib/firestoreDb';
-import { getActiveProfileId, getWeightHistory, logWeight, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
+import { getMealsForDate, getSleepLogs, getWeightHistory, logWeight, putProfile } from '../lib/firestoreDb';
+import { getActiveProfileId, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
 import { computeWeightTrend } from '../lib/weightTrend';
 import type { MealLog, SleepLog, WeightEntry } from '../types';
 import { useAuth } from '../lib/AuthContext';
@@ -44,7 +44,8 @@ export default function Dashboard() {
       const sleepLogs = await getSleepLogs(pid);
       const todays = sleepLogs.filter((s) => s.date === today);
       setLastSleep(todays[todays.length - 1] ?? sleepLogs[sleepLogs.length - 1] ?? null);
-      setWeights(getWeightHistory(pid).filter((w) => w.date >= dayjs().subtract(60, 'day').format('YYYY-MM-DD')));
+      const history = await getWeightHistory(pid);
+      setWeights(history.filter((w) => w.date >= dayjs().subtract(60, 'day').format('YYYY-MM-DD')));
     })();
   }, [profile, pid, today]);
 
@@ -81,7 +82,7 @@ export default function Dashboard() {
       return;
     }
     setInputError(false);
-    const updated = logWeight(pid, today, val);
+    const updated = await logWeight(pid, today, val);
     setWeights(updated.filter((w) => w.date >= dayjs().subtract(60, 'day').format('YYYY-MM-DD')));
     setWeightInput('');
     if (profile) {

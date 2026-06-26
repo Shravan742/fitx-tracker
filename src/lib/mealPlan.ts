@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import recipes from '../data/recipes';
+import { getRecipes, getRecipeById } from './recipesCache';
 import type { Diet, Macros, PlanEntry, Recipe } from '../types';
 import { getMealsForDate } from './firestoreDb';
 import { estimateRecipeCostPerServing, estimateSlotCost } from './recipeCost';
@@ -20,6 +20,7 @@ export const MEAL_SLOTS: MealSlot[] = [
 ];
 
 export function getFiltered(diets: Diet[]): Recipe[] {
+  const recipes = getRecipes();
   if (!diets.length) return recipes;
   if (diets.includes('vegetarian') && !diets.includes('vegan')) {
     return recipes.filter((r) => diets.includes(r.diet) || r.diet === 'vegan');
@@ -50,7 +51,7 @@ export function getPlanKey(
 ): string {
   const macroSig = targets ? `_${targets.calories}` : '';
   const budgetSig = weeklyBudget ? `_b${weeklyBudget}` : '';
-  return `fitx_plan_v5_${profileId}_${date}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
+  return `fitx_plan_v6_${profileId}_${date}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
 }
 
 /**
@@ -139,7 +140,7 @@ function generatePlanForDailyBudget(
     const pick = pickForSlot(candidates, tgtCal, tgtPro, isSnack, excludeAcrossWeek, daySeed, costAllowance);
 
     if (pick) usedToday.add(pick.recipe);
-    return { slotKey: slot.key, recipeIdx: pick ? recipes.indexOf(pick.recipe) : 0, scale: pick?.scale ?? 1 };
+    return { slotKey: slot.key, recipeId: pick ? pick.recipe.id : getRecipes()[0]?.id ?? '', scale: pick?.scale ?? 1 };
   });
 }
 
@@ -161,7 +162,7 @@ export interface DayPlan {
 
 function planCost(plan: PlanEntry[]): number {
   return plan.reduce((sum, p) => {
-    const r = recipes[p.recipeIdx];
+    const r = getRecipeById(p.recipeId);
     return r ? sum + estimateSlotCost(r, p.scale ?? 1) : sum;
   }, 0);
 }
@@ -187,7 +188,7 @@ function enforceWeeklyBudget(days: DayPlan[], diets: Diet[], weeklyBudget: numbe
 
     for (const day of days) {
       for (let slotIdx = 0; slotIdx < day.plan.length; slotIdx++) {
-        const r = recipes[day.plan[slotIdx].recipeIdx];
+        const r = getRecipeById(day.plan[slotIdx].recipeId);
         if (!r) continue;
         const cost = estimateSlotCost(r, day.plan[slotIdx].scale ?? 1);
         if (!worst || cost > worst.cost) worst = { day, slotIdx, cost };
@@ -209,7 +210,7 @@ function enforceWeeklyBudget(days: DayPlan[], diets: Diet[], weeklyBudget: numbe
     const newCost = estimateSlotCost(cheapest, scale || 1);
     if (newCost >= found.cost) break; // no further improvement possible
 
-    found.day.plan[found.slotIdx] = { ...found.day.plan[found.slotIdx], recipeIdx: recipes.indexOf(cheapest) };
+    found.day.plan[found.slotIdx] = { ...found.day.plan[found.slotIdx], recipeId: cheapest.id };
     total = total - found.cost + newCost;
   }
 }
@@ -232,7 +233,7 @@ export function generateWeeklyPlan(
 
     const plan = generatePlanForDailyBudget(diets, targets, i, usedAcrossWeek, dailyBudgetForDay);
     plan.forEach((p) => {
-      const r = recipes[p.recipeIdx];
+      const r = getRecipeById(p.recipeId);
       if (r) usedAcrossWeek.add(r);
     });
 
@@ -256,7 +257,7 @@ export function getWeeklyPlanKey(
 ): string {
   const macroSig = targets ? `_${targets.calories}` : '';
   const budgetSig = weeklyBudget ? `_b${weeklyBudget}` : '';
-  return `fitx_weekplan_v1_${profileId}_${startDate}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
+  return `fitx_weekplan_v2_${profileId}_${startDate}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
 }
 
 export function loadWeeklyPlanCached(
@@ -295,14 +296,10 @@ export function swapWeeklySlot(
   const dayPlan = weekPlan[dayIndex];
   if (!dayPlan) return weekPlan;
 
-  const currentGIdx = dayPlan.plan[slotIdx].recipeIdx;
+  const currentId = dayPlan.plan[slotIdx].recipeId;
 
-  const byType = pool
-    .map((r) => ({ r, gi: recipes.indexOf(r) }))
-    .filter((x) => slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
-  const others = pool
-    .map((r) => ({ r, gi: recipes.indexOf(r) }))
-    .filter((x) => !slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
+  const byType = pool.filter((r) => slot.types.includes(r.mealType) && r.id !== currentId);
+  const others = pool.filter((r) => !slot.types.includes(r.mealType) && r.id !== currentId);
   const candidates = [...byType, ...others];
 
   const cycleKey = `${key}_swapIdx_${dayIndex}_${slotIdx}`;
@@ -312,8 +309,8 @@ export function swapWeeklySlot(
   if (pick) {
     const tgtCal = Math.round((targets?.calories || 2000) * slot.ratio);
     const isSnack = slot.key === 'snack';
-    const newScale = isSnack ? Math.min(1, scaleFor(pick.r, tgtCal)) : scaleFor(pick.r, tgtCal);
-    dayPlan.plan[slotIdx] = { ...dayPlan.plan[slotIdx], recipeIdx: pick.gi, scale: newScale };
+    const newScale = isSnack ? Math.min(1, scaleFor(pick, tgtCal)) : scaleFor(pick, tgtCal);
+    dayPlan.plan[slotIdx] = { ...dayPlan.plan[slotIdx], recipeId: pick.id, scale: newScale };
     localStorage.setItem(cycleKey, String(cycleIdx + 1));
   }
   localStorage.setItem(key, JSON.stringify(weekPlan));
@@ -352,14 +349,10 @@ export function swapSlot(
   const pool = getFiltered(diets);
   const slot = MEAL_SLOTS[slotIdx];
 
-  const currentGIdx = plan[slotIdx].recipeIdx;
+  const currentId = plan[slotIdx].recipeId;
 
-  const byType = pool
-    .map((r) => ({ r, gi: recipes.indexOf(r) }))
-    .filter((x) => slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
-  const others = pool
-    .map((r) => ({ r, gi: recipes.indexOf(r) }))
-    .filter((x) => !slot.types.includes(x.r.mealType) && x.gi !== currentGIdx);
+  const byType = pool.filter((r) => slot.types.includes(r.mealType) && r.id !== currentId);
+  const others = pool.filter((r) => !slot.types.includes(r.mealType) && r.id !== currentId);
   const candidates = [...byType, ...others];
 
   const cycleKey = `${key}_swapIdx_${slotIdx}`;
@@ -369,8 +362,8 @@ export function swapSlot(
   if (pick) {
     const tgtCal = Math.round((targets?.calories || 2000) * slot.ratio);
     const isSnack = slot.key === 'snack';
-    const newScale = isSnack ? Math.min(1, scaleFor(pick.r, tgtCal)) : scaleFor(pick.r, tgtCal);
-    plan[slotIdx] = { ...plan[slotIdx], recipeIdx: pick.gi, scale: newScale };
+    const newScale = isSnack ? Math.min(1, scaleFor(pick, tgtCal)) : scaleFor(pick, tgtCal);
+    plan[slotIdx] = { ...plan[slotIdx], recipeId: pick.id, scale: newScale };
     localStorage.setItem(cycleKey, String(cycleIdx + 1));
   }
   localStorage.setItem(key, JSON.stringify(plan));

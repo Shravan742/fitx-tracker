@@ -54,6 +54,34 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
     }
 
+    match /customIngredients/{id} {
+      allow read: if request.auth != null
+        && (resource.data.profileId == request.auth.uid || isAcceptedPartner(resource.data.profileId));
+      allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.profileId == request.auth.uid;
+    }
+
+    // Doc ID is `${profileId}_${date}`, so writes are always to the caller's own entries.
+    match /weights/{id} {
+      allow read: if request.auth != null
+        && (resource.data.profileId == request.auth.uid || isAcceptedPartner(resource.data.profileId));
+      allow write: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+    }
+
+    // Doc ID is `${profileId}_${weekStartDate}` — personal, not shared with a partner.
+    // `resource == null` covers the very first read of a not-yet-created week's checklist.
+    match /shoppingChecklists/{id} {
+      allow get: if request.auth != null && (resource == null || resource.data.profileId == request.auth.uid);
+      allow create, update: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+    }
+
+    // Shared reference data — every signed-in user can read, nobody writes from the
+    // client (seeded once via the Admin SDK, bypassing rules entirely).
+    match /recipes/{id} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Invite doc ID is always the sender's own uid (one active invite per sender).
     match /invites/{inviteId} {
       allow read: if request.auth != null

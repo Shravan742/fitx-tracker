@@ -1,33 +1,17 @@
 import type { Diet, Macros, Profile } from '../types';
 import { calcMacros, applyDietProteinModifier } from './macros';
 
-const HOUSEHOLD_DIET_KEY = 'fitx_household_diet';
-const HOUSEHOLD_BUDGET_KEY = 'fitx_household_budget';
-const HOUSEHOLD_MODE_KEY = 'fitx_household_mode';
-
 /**
- * "Cook together" must survive navigating away and back — it was plain component
- * state before, so leaving the Meals tab silently reset it to off and made the
- * combined plan look like it had stopped combining anything.
+ * Household settings (mode/diets/budget) live on the signed-in user's own profile
+ * doc — already synced via Firestore through the normal saveProfile flow, so no
+ * separate storage layer is needed. These are just typed accessors over a Profile.
  */
-export function getHouseholdModeOn(): boolean {
-  return localStorage.getItem(HOUSEHOLD_MODE_KEY) === '1';
+export function getHouseholdModeOn(profile: Profile | null): boolean {
+  return profile?.household?.mode ?? false;
 }
 
-export function setHouseholdModeOn(on: boolean): void {
-  localStorage.setItem(HOUSEHOLD_MODE_KEY, on ? '1' : '0');
-}
-
-export function getHouseholdDietPreferences(): Diet[] {
-  try {
-    return JSON.parse(localStorage.getItem(HOUSEHOLD_DIET_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-export function setHouseholdDietPreferences(diets: Diet[]): void {
-  localStorage.setItem(HOUSEHOLD_DIET_KEY, JSON.stringify(diets));
+export function getHouseholdDietPreferences(profile: Profile | null): Diet[] {
+  return profile?.household?.diets ?? [];
 }
 
 /**
@@ -37,15 +21,8 @@ export function setHouseholdDietPreferences(diets: Diet[]): void {
  * "shared" plans depending on who's logged in. Falls back to `fallback` (typically
  * the current user's own budget) only until a household budget has been explicitly set.
  */
-export function getHouseholdBudget(fallback: number): number {
-  const raw = localStorage.getItem(HOUSEHOLD_BUDGET_KEY);
-  if (raw == null) return fallback;
-  const parsed = parseFloat(raw);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-export function setHouseholdBudget(amount: number): void {
-  localStorage.setItem(HOUSEHOLD_BUDGET_KEY, String(amount));
+export function getHouseholdBudget(profile: Profile | null, fallback: number): number {
+  return profile?.household?.budget ?? fallback;
 }
 
 export interface MemberMacros {

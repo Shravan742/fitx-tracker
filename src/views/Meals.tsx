@@ -6,7 +6,8 @@ import { usePartner } from '../lib/usePartner';
 import { calcMacros, applyDietProteinModifier } from '../lib/macros';
 import { getActiveProfileId } from '../lib/storage';
 import { addMeal, deleteMeal, getMealsForDate } from '../lib/firestoreDb';
-import recipes from '../data/recipes';
+import { loadCustomIngredients } from '../lib/customIngredients';
+import { getRecipeById } from '../lib/recipesCache';
 import type { Diet, MealLog, PlanEntry } from '../types';
 import {
   MEAL_SLOTS,
@@ -20,11 +21,8 @@ import {
 import {
   computeHouseholdMacros,
   getHouseholdDietPreferences,
-  setHouseholdDietPreferences,
   getHouseholdBudget,
-  setHouseholdBudget,
   getHouseholdModeOn,
-  setHouseholdModeOn,
   splitServings,
 } from '../lib/household';
 import Card from '../components/Card';
@@ -62,16 +60,22 @@ export default function Meals() {
   const [customMeal, setCustomMeal] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' });
   const [customSaving, setCustomSaving] = useState(false);
 
-  const [householdMode, setHouseholdModeState] = useState(getHouseholdModeOn);
-  const setHouseholdMode = (on: boolean) => {
-    setHouseholdModeOn(on);
-    setHouseholdModeState(on);
-  };
+  const householdMode = getHouseholdModeOn(profile);
+  const householdDiets = getHouseholdDietPreferences(profile);
   const [householdBudgetInput, setHouseholdBudgetInput] = useState('');
-  const [householdDiets, setHouseholdDiets] = useState<Diet[]>(getHouseholdDietPreferences());
+
+  /** Household settings now live on the profile doc itself (already synced via
+   * Firestore through saveProfile) — no separate local storage layer. */
+  const updateHousehold = async (patch: Partial<{ mode: boolean; diets: Diet[]; budget: number }>) => {
+    if (!profile) return;
+    await saveProfile({ ...profile, household: { ...profile.household, mode: profile.household?.mode ?? false, diets: profile.household?.diets ?? [], ...patch } });
+  };
+  const setHouseholdMode = (on: boolean) => updateHousehold({ mode: on });
+  const setHouseholdDiets = (diets: Diet[]) => updateHousehold({ diets });
 
   useEffect(() => {
-    if (!partnerId) setHouseholdMode(false);
+    if (!partnerId && householdMode) setHouseholdMode(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerId]);
 
   const householdMacros = useMemo(
@@ -84,7 +88,7 @@ export default function Meals() {
   const planOwnerId = householdMode ? 'household' : pid;
   // The shared plan must use one shared budget regardless of which partner is currently
   // logged in — see getHouseholdBudget for why this can't just be profile.weeklyBudget.
-  const effectiveBudget = householdMode ? getHouseholdBudget(profile?.weeklyBudget ?? 0) : profile?.weeklyBudget;
+  const effectiveBudget = householdMode ? getHouseholdBudget(profile, profile?.weeklyBudget ?? 0) : profile?.weeklyBudget;
 
   const baseTargets = useMemo(() => {
     if (householdMode) return householdMacros?.combined ?? null;
@@ -93,6 +97,11 @@ export default function Meals() {
     return applyDietProteinModifier(m, activeDiets);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, activeDietsKey, householdMode, householdMacros]);
+
+  const [, setIngredientsTick] = useState(0);
+  useEffect(() => {
+    loadCustomIngredients(pid, partnerId).then(() => setIngredientsTick((t) => t + 1));
+  }, [pid, partnerId]);
 
   useEffect(() => {
     if (!profile) return;
@@ -154,7 +163,7 @@ export default function Meals() {
   const planTotals = useMemo(() => {
     const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
     plan.forEach((p) => {
-      const r = recipes[p.recipeIdx];
+      const r = getRecipeById(p.recipeId);
       if (r) {
         const m = scaledMacros(r, p.scale ?? 1);
         totals.calories += m.calories;
@@ -177,8 +186,7 @@ export default function Meals() {
       else diets.push(diet);
     }
     if (householdMode) {
-      setHouseholdDiets(diets);
-      setHouseholdDietPreferences(diets);
+      await setHouseholdDiets(diets);
     } else {
       await saveProfile({ ...profile, dietPreferences: diets });
     }
@@ -191,7 +199,7 @@ export default function Meals() {
 
   const handleLogPlanItem = async (slotIdx: number) => {
     const p = plan[slotIdx];
-    const r = recipes[p.recipeIdx];
+    const r = getRecipeById(p.recipeId);
     if (!r) return;
 
     if (householdMode && householdMacros && partnerId) {
@@ -340,9 +348,9 @@ export default function Meals() {
               placeholder={String(effectiveBudget ?? 0)}
               value={householdBudgetInput}
               onChange={(e) => setHouseholdBudgetInput(e.target.value)}
-              onBlur={() => {
+              onBlur={async () => {
                 const val = parseFloat(householdBudgetInput);
-                if (val > 0) setHouseholdBudget(val);
+                if (val > 0) await updateHousehold({ budget: val });
                 setHouseholdBudgetInput('');
               }}
             />
@@ -486,7 +494,7 @@ export default function Meals() {
           <StaggerList className="space-y-3">
             {MEAL_SLOTS.map((slot, idx) => {
               const p = plan[idx];
-              const r = recipes[p.recipeIdx];
+              const r = getRecipeById(p.recipeId);
               if (!r) return null;
               const tgtCal = Math.round(targets.calories * slot.ratio);
               const tgtPro = Math.round(targets.protein * slot.ratio);
@@ -565,6 +573,7 @@ export default function Meals() {
 
       <CustomIngredients
         profileId={pid}
+        partnerUid={partnerId}
         date={today}
         onLogged={async () => setTodayMeals(await getMealsForDate(pid, today))}
         onIngredientsChanged={() => {

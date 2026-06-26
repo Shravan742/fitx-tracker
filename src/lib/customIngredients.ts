@@ -1,5 +1,9 @@
+import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { firestore } from './firebase';
+
 export interface CustomIngredient {
   id: string;
+  profileId: string;
   name: string;
   kcalPer100: number;
   proteinPer100: number;
@@ -8,47 +12,63 @@ export interface CustomIngredient {
   pricePer100?: number;
 }
 
-const KEY = 'fitx_custom_ingredients';
+/**
+ * The meal-planning pipeline (mealPlan.ts -> recipeCost.ts -> ingredientPrices.ts)
+ * is entirely synchronous, so custom ingredients can't be fetched from Firestore
+ * inline mid-calculation. Instead we keep an in-memory cache, refreshed whenever the
+ * signed-in user (or their linked partner) changes, and every read here is just a
+ * synchronous read of that cache.
+ */
+let cache: CustomIngredient[] = [];
 
-export function getCustomIngredients(): CustomIngredient[] {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || '[]');
-  } catch {
-    return [];
-  }
+export async function loadCustomIngredients(uid: string, partnerUid: string | null): Promise<void> {
+  const ids = partnerUid ? [uid, partnerUid] : [uid];
+  const q = query(collection(firestore, 'customIngredients'), where('profileId', 'in', ids));
+  const snap = await getDocs(q);
+  cache = snap.docs.map((d) => ({ ...(d.data() as Omit<CustomIngredient, 'id'>), id: d.id }));
 }
 
-function saveAll(items: CustomIngredient[]): void {
-  localStorage.setItem(KEY, JSON.stringify(items));
+export function getCustomIngredients(): CustomIngredient[] {
+  return cache;
 }
 
 /**
- * Cached meal plans (fitx_plan_v5_*, fitx_weekplan_v1_*) bake in which recipe was
+ * Cached meal plans (fitx_plan_v6_*, fitx_weekplan_v2_*) bake in which recipe was
  * picked, based on cost ranking at generation time. If a custom ingredient's price
  * changes, recipes using it should be re-ranked — otherwise editing a price silently
  * does nothing until the next unrelated cache-busting event.
  */
 function invalidateMealPlanCache(): void {
   Object.keys(localStorage)
-    .filter((k) => k.startsWith('fitx_plan_v5_') || k.startsWith('fitx_weekplan_v1_'))
+    .filter((k) => k.startsWith('fitx_plan_v6_') || k.startsWith('fitx_weekplan_v2_'))
     .forEach((k) => localStorage.removeItem(k));
 }
 
-export function addCustomIngredient(input: Omit<CustomIngredient, 'id'>): CustomIngredient {
-  const item: CustomIngredient = { ...input, id: crypto.randomUUID() };
-  saveAll([...getCustomIngredients(), item]);
+export async function addCustomIngredient(
+  uid: string,
+  partnerUid: string | null,
+  input: Omit<CustomIngredient, 'id' | 'profileId'>,
+): Promise<void> {
+  await addDoc(collection(firestore, 'customIngredients'), { ...input, profileId: uid });
   invalidateMealPlanCache();
-  return item;
+  await loadCustomIngredients(uid, partnerUid);
 }
 
-export function deleteCustomIngredient(id: string): void {
-  saveAll(getCustomIngredients().filter((i) => i.id !== id));
+export async function deleteCustomIngredient(uid: string, partnerUid: string | null, id: string): Promise<void> {
+  await deleteDoc(doc(firestore, 'customIngredients', id));
   invalidateMealPlanCache();
+  await loadCustomIngredients(uid, partnerUid);
 }
 
-export function updateCustomIngredient(id: string, patch: Omit<CustomIngredient, 'id'>): void {
-  saveAll(getCustomIngredients().map((i) => (i.id === id ? { ...patch, id } : i)));
+export async function updateCustomIngredient(
+  uid: string,
+  partnerUid: string | null,
+  id: string,
+  patch: Omit<CustomIngredient, 'id' | 'profileId'>,
+): Promise<void> {
+  await setDoc(doc(firestore, 'customIngredients', id), { ...patch, profileId: uid }, { merge: true });
   invalidateMealPlanCache();
+  await loadCustomIngredients(uid, partnerUid);
 }
 
 export function macrosForGrams(ingredient: CustomIngredient, grams: number) {
@@ -64,7 +84,7 @@ export function macrosForGrams(ingredient: CustomIngredient, grams: number) {
 /** Finds a custom ingredient whose name matches (case-insensitive substring, either direction). */
 export function findCustomIngredientByName(name: string): CustomIngredient | undefined {
   const lower = name.toLowerCase();
-  return getCustomIngredients().find((i) => lower.includes(i.name.toLowerCase()) || i.name.toLowerCase().includes(lower));
+  return cache.find((i) => lower.includes(i.name.toLowerCase()) || i.name.toLowerCase().includes(lower));
 }
 
 export interface TopUpSuggestion {
@@ -79,7 +99,7 @@ export interface TopUpSuggestion {
  * just telling the user to "log extra" and figure out the amount themselves.
  */
 export function suggestTopUp(remaining: { calories: number; protein: number }): TopUpSuggestion | null {
-  const ingredients = getCustomIngredients();
+  const ingredients = cache;
   if (!ingredients.length) return null;
 
   let grams: number;

@@ -1,4 +1,4 @@
-import recipes from '../data/recipes';
+import { getRecipeById } from './recipesCache';
 import type { DayPlan } from './mealPlan';
 import { estimateSlotCost } from './recipeCost';
 
@@ -19,7 +19,7 @@ export function buildShoppingList(weekPlan: DayPlan[]): ShoppingList {
 
   weekPlan.forEach(({ plan }) => {
     plan.forEach((p) => {
-      const r = recipes[p.recipeIdx];
+      const r = getRecipeById(p.recipeId);
       if (!r) return;
       const scale = p.scale ?? 1;
       totalCost += estimateSlotCost(r, scale);

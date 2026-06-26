@@ -1,8 +1,9 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ProfileProvider, useProfile } from './lib/ProfileContext';
+import { loadRecipes } from './lib/recipesCache';
 import Header from './components/Header';
 import Nav from './components/Nav';
 import Onboarding from './views/Onboarding';
@@ -71,8 +72,13 @@ function AuthGate() {
 
 function Shell() {
   const { profile, loading } = useProfile();
+  const [recipesLoading, setRecipesLoading] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    loadRecipes().finally(() => setRecipesLoading(false));
+  }, []);
+
+  if (loading || recipesLoading) {
     return <div className="flex h-dvh items-center justify-center text-text-muted">Loading…</div>;
   }
 

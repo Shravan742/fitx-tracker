@@ -5,6 +5,12 @@ export type Diet = 'chicken' | 'beef' | 'pork' | 'fish' | 'vegetarian' | 'vegan'
 export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'any';
 export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
+export interface HouseholdSettings {
+  mode: boolean;
+  diets: Diet[];
+  budget?: number;
+}
+
 export interface Profile {
   id: string;
   email?: string;
@@ -19,6 +25,7 @@ export interface Profile {
   onboardingDone: boolean;
   restDays: Weekday[];
   weeklyBudget: number;
+  household?: HouseholdSettings;
   updatedAt?: string;
 }
 
@@ -99,6 +106,7 @@ export interface RecipeMacros {
 }
 
 export interface Recipe {
+  id: string;
   name: string;
   cuisine: string;
   diet: Diet;
@@ -112,7 +120,7 @@ export interface Recipe {
 
 export interface PlanEntry {
   slotKey: string;
-  recipeIdx: number;
+  recipeId: string;
   scale: number;
 }
 

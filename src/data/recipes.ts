@@ -1,7 +1,10 @@
-// Full recipe database — tagged by diet and meal type (for planner)
+// Full recipe database — tagged by diet and meal type (for planner).
+// This file is only used by scripts/seedRecipes.mjs to seed Firestore (the `id` field
+// is generated there from the recipe name); the live app reads from Firestore via
+// lib/recipesCache.ts instead.
 import type { Recipe } from '../types';
 
-const recipes: Recipe[] = [
+const recipes: Omit<Recipe, 'id'>[] = [
   // ── BREAKFAST ──────────────────────────────────────────────────────────────
   {
     name: 'Masala Omelette',
