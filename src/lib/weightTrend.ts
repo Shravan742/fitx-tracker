@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import type { Goal, WeightEntry } from '../types';
 
 export interface WeightTrend {
@@ -15,7 +16,10 @@ export function computeWeightTrend(entries: WeightEntry[], goal: Goal): WeightTr
   const latest = vals[vals.length - 1];
   const first = vals[0];
   const change = latest - first;
-  const days = sorted.length;
+  // Elapsed calendar days between first and last log, not the number of log entries —
+  // sparse logging (e.g. once a week) was being treated as "N days" where N was the
+  // entry count, wildly overestimating the weekly rate of change.
+  const days = Math.max(1, dayjs(sorted[sorted.length - 1].date).diff(dayjs(sorted[0].date), 'day'));
   const perWeek = Number(((change / days) * 7).toFixed(2));
 
   let trendLabel: string;

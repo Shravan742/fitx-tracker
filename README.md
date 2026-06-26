@@ -1,4 +1,4 @@
-# FitX Tracker
+# GymOS
 
 Personal fitness tracker: adaptive meal planning, workout library with anatomical muscle diagrams, 1RM tracking, sleep logging, and weight trend tracking — offline-first PWA on GitHub Pages.
 

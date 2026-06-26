@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { ActivityLevel, Goal, Profile, Sex, Weekday } from '../types';
 import { getActiveProfileId } from '../lib/storage';
 import { useProfile } from '../lib/ProfileContext';
@@ -30,15 +31,21 @@ export default function Onboarding() {
     restDays: ['sunday'],
     weeklyBudget: 60,
   });
+  const [finishing, setFinishing] = useState(false);
+  const [direction, setDirection] = useState(1);
 
   const next = () => {
     if (step === 0 && (!data.age || !data.heightCm || !data.weightKg || !data.name)) {
       alert('Please fill in your name, age, height, and weight.');
       return;
     }
+    setDirection(1);
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
-  const back = () => setStep((s) => Math.max(s - 1, 0));
+  const back = () => {
+    setDirection(-1);
+    setStep((s) => Math.max(s - 1, 0));
+  };
 
   const toggleRestDay = (day: Weekday) => {
     const current = data.restDays ?? [];
@@ -47,43 +54,63 @@ export default function Onboarding() {
   };
 
   const finish = async () => {
-    const id = getActiveProfileId();
-    const profile: Profile = {
-      id,
-      name: data.name!.trim(),
-      age: data.age!,
-      sex: data.sex as Sex,
-      heightCm: data.heightCm!,
-      weightKg: data.weightKg!,
-      activityLevel: data.activityLevel as ActivityLevel,
-      goal: data.goal as Goal,
-      dietPreferences: data.dietPreferences ?? [],
-      restDays: data.restDays?.length ? data.restDays : ['sunday'],
-      weeklyBudget: data.weeklyBudget ?? 60,
-      onboardingDone: true,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveProfile(profile);
+    setFinishing(true);
+    try {
+      const id = getActiveProfileId();
+      const profile: Profile = {
+        id,
+        name: data.name!.trim(),
+        age: data.age!,
+        sex: data.sex as Sex,
+        heightCm: data.heightCm!,
+        weightKg: data.weightKg!,
+        activityLevel: data.activityLevel as ActivityLevel,
+        goal: data.goal as Goal,
+        dietPreferences: data.dietPreferences ?? [],
+        restDays: data.restDays?.length ? data.restDays : ['sunday'],
+        weeklyBudget: data.weeklyBudget ?? 60,
+        onboardingDone: true,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveProfile(profile);
+    } finally {
+      setFinishing(false);
+    }
   };
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-10">
       <h1 className="text-center text-2xl font-bold">
-        Welcome to <span className="gradient-text">FitX</span>
+        Welcome to <span className="gradient-text">GymOS</span>
       </h1>
       <p className="mb-6 text-center text-sm text-text-muted">Let's set up your profile</p>
 
       <div className="mb-6 flex justify-center gap-2">
         {STEPS.map((_, i) => (
-          <div
+          <motion.div
             key={i}
             className={`h-1.5 w-7 rounded-full ${i <= step ? '' : 'bg-border'}`}
-            style={i <= step ? { backgroundImage: 'linear-gradient(135deg, var(--color-accent), var(--color-accent2))' } : undefined}
+            initial={false}
+            animate={{
+              backgroundImage:
+                i <= step ? 'linear-gradient(135deg, var(--color-accent), var(--color-accent2))' : 'none',
+              scale: i === step ? 1.1 : 1,
+            }}
+            transition={{ duration: 0.25 }}
           />
         ))}
       </div>
 
-      <div className="flex-1 rounded-2xl border border-border bg-card p-5 card-glow">
+      <div className="relative flex-1 overflow-hidden rounded-2xl border border-border bg-card p-5 card-glow">
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <motion.div
+            key={step}
+            custom={direction}
+            initial={{ opacity: 0, x: direction > 0 ? 40 : -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction > 0 ? -40 : 40 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
         {step === 0 && (
           <div className="space-y-4">
             <h3 className="font-semibold">Basic info</h3>
@@ -244,6 +271,8 @@ export default function Onboarding() {
             <Row label="Weekly budget" value={`€${data.weeklyBudget ?? 0}`} />
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <div className="mt-4 flex gap-3">
@@ -257,8 +286,16 @@ export default function Onboarding() {
             Next
           </button>
         ) : (
-          <button onClick={finish} className="btn-primary flex-1">
-            Finish
+          <button onClick={finish} className="btn-primary flex-1 disabled:cursor-not-allowed" disabled={finishing}>
+            {finishing ? (
+              <motion.span
+                className="mx-auto inline-block h-3.5 w-3.5 rounded-full border-2 border-bg/40 border-t-bg"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+              />
+            ) : (
+              'Finish'
+            )}
           </button>
         )}
       </div>

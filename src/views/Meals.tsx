@@ -22,11 +22,17 @@ import {
   setHouseholdDietPreferences,
   getHouseholdBudget,
   setHouseholdBudget,
+  getHouseholdModeOn,
+  setHouseholdModeOn,
   splitServings,
 } from '../lib/household';
 import Card from '../components/Card';
 import MealSlotCard from '../components/MealSlotCard';
 import WeeklyPlanView from '../components/WeeklyPlanView';
+import CustomIngredients from '../components/CustomIngredients';
+import TopUpSuggestion from '../components/TopUpSuggestion';
+import { AnimatedNumber, ProgressBar, StaggerList, StaggerItem } from '../components/motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const DIET_LABELS: Record<Diet, { label: string; icon: string }> = {
   chicken: { label: 'Chicken', icon: '🍗' },
@@ -50,8 +56,13 @@ export default function Meals() {
   const [plan, setPlan] = useState<PlanEntry[]>([]);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customMeal, setCustomMeal] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' });
+  const [customSaving, setCustomSaving] = useState(false);
 
-  const [householdMode, setHouseholdMode] = useState(false);
+  const [householdMode, setHouseholdModeState] = useState(getHouseholdModeOn);
+  const setHouseholdMode = (on: boolean) => {
+    setHouseholdModeOn(on);
+    setHouseholdModeState(on);
+  };
   const [partnerProfile, setPartnerProfile] = useState<Profile | null>(null);
   const [householdBudgetInput, setHouseholdBudgetInput] = useState('');
   const [householdDiets, setHouseholdDiets] = useState<Diet[]>(getHouseholdDietPreferences());
@@ -230,19 +241,24 @@ export default function Meals() {
 
   const handleCustomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addMeal({
-      profileId: pid,
-      date: today,
-      name: customMeal.name,
-      calories: +customMeal.calories,
-      protein: +customMeal.protein,
-      carbs: +customMeal.carbs,
-      fat: +customMeal.fat,
-      loggedAt: new Date().toISOString(),
-    });
-    setCustomMeal({ name: '', calories: '', protein: '', carbs: '', fat: '' });
-    setShowCustomForm(false);
-    setTodayMeals(await getMealsForDate(pid, today));
+    setCustomSaving(true);
+    try {
+      await addMeal({
+        profileId: pid,
+        date: today,
+        name: customMeal.name,
+        calories: +customMeal.calories,
+        protein: +customMeal.protein,
+        carbs: +customMeal.carbs,
+        fat: +customMeal.fat,
+        loggedAt: new Date().toISOString(),
+      });
+      setCustomMeal({ name: '', calories: '', protein: '', carbs: '', fat: '' });
+      setShowCustomForm(false);
+      setTodayMeals(await getMealsForDate(pid, today));
+    } finally {
+      setCustomSaving(false);
+    }
   };
 
   const surplusNote = useMemo(() => {
@@ -274,7 +290,7 @@ export default function Meals() {
       <div className="flex gap-2 rounded-xl bg-surface2 p-1">
         <button
           className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-            tab === 'today' ? 'bg-accent text-white' : 'text-text-muted'
+            tab === 'today' ? 'bg-accent text-bg' : 'text-text-muted'
           }`}
           onClick={() => setTab('today')}
         >
@@ -282,7 +298,7 @@ export default function Meals() {
         </button>
         <button
           className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-            tab === 'week' ? 'bg-accent text-white' : 'text-text-muted'
+            tab === 'week' ? 'bg-accent text-bg' : 'text-text-muted'
           }`}
           onClick={() => setTab('week')}
         >
@@ -292,7 +308,7 @@ export default function Meals() {
 
       {partnerProfile && (
         <button
-          onClick={() => setHouseholdMode((v) => !v)}
+          onClick={() => setHouseholdMode(!householdMode)}
           className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
             householdMode ? 'border-accent bg-accent/10' : 'border-border bg-card'
           }`}
@@ -355,7 +371,7 @@ export default function Meals() {
       ) : (
         <>
       {targets ? (
-        <Card>
+        <Card variant="glow">
           <div className="flex justify-between text-center">
             <Stat value={eaten.calories} label="eaten kcal" />
             <Stat
@@ -389,7 +405,7 @@ export default function Meals() {
           <button
             onClick={() => toggleDiet('all')}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              !activeDiets.length ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+              !activeDiets.length ? 'bg-accent text-bg' : 'bg-surface2 text-text-muted'
             }`}
           >
             🍽️ All
@@ -399,7 +415,7 @@ export default function Meals() {
               key={key}
               onClick={() => toggleDiet(key as Diet)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                activeDiets.includes(key as Diet) ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+                activeDiets.includes(key as Diet) ? 'bg-accent text-bg' : 'bg-surface2 text-text-muted'
               }`}
             >
               {val.icon} {val.label}
@@ -425,24 +441,46 @@ export default function Meals() {
                 </div>
               </div>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface2">
-              <div
-                className="h-full rounded-full bg-accent"
-                style={{ width: `${Math.min(100, Math.round((planTotals.calories / targets.calories) * 100))}%` }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-text-muted">
-              {planTotals.calories >= targets.calories * 0.9
-                ? '✓ Plan covers your daily target'
-                : `Plan covers ${Math.round((planTotals.calories / targets.calories) * 100)}% of calories — log extra snacks to reach your target`}
-            </p>
+            <ProgressBar
+              className="mt-3 h-2"
+              pct={Math.round((planTotals.calories / targets.calories) * 100)}
+              gradient="linear-gradient(90deg, var(--color-accent), var(--color-accent2))"
+            />
+            <ProgressBar
+              className="mt-1.5 h-1.5"
+              pct={Math.round((planTotals.protein / targets.protein) * 100)}
+              color="var(--color-info)"
+            />
+            {(() => {
+              const calPct = Math.round((planTotals.calories / targets.calories) * 100);
+              const proPct = Math.round((planTotals.protein / targets.protein) * 100);
+              const covers = calPct >= 90 && proPct >= 90;
+              if (covers) return <p className="mt-2 text-xs text-success">✓ Plan covers your daily target</p>;
+              const gaps: string[] = [];
+              if (calPct < 90) gaps.push(`${calPct}% of calories`);
+              if (proPct < 90) gaps.push(`${proPct}% of protein`);
+              return (
+                <>
+                  <p className="mt-2 text-xs text-text-muted">Plan covers {gaps.join(' and ')}</p>
+                  <TopUpSuggestion
+                    profileId={pid}
+                    date={today}
+                    remaining={{
+                      calories: Math.max(0, targets.calories - planTotals.calories),
+                      protein: Math.max(0, targets.protein - planTotals.protein),
+                    }}
+                    onLogged={async () => setTodayMeals(await getMealsForDate(pid, today))}
+                  />
+                </>
+              );
+            })()}
             {surplusNote && (
               <p className="mt-2 rounded-lg bg-info/10 p-2 text-xs text-info">↩ Adjusted for yesterday: {surplusNote}</p>
             )}
           </Card>
 
           <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Today's Meal Plan</h2>
-          <div className="space-y-3">
+          <StaggerList className="space-y-3">
             {MEAL_SLOTS.map((slot, idx) => {
               const p = plan[idx];
               const r = recipes[p.recipeIdx];
@@ -460,42 +498,53 @@ export default function Meals() {
                     })()
                   : undefined;
               return (
-                <MealSlotCard
-                  key={slot.key}
-                  slotIcon={slot.icon}
-                  slotLabel={slot.label}
-                  tgtCal={tgtCal}
-                  tgtPro={tgtPro}
-                  recipe={r}
-                  scale={p.scale ?? 1}
-                  isLogged={loggedNames.has(r.name)}
-                  onSwap={() => handleSwap(idx)}
-                  onLog={() => handleLogPlanItem(idx)}
-                  servingSplit={servingSplit}
-                />
+                <StaggerItem key={slot.key}>
+                  <MealSlotCard
+                    slotIcon={slot.icon}
+                    slotLabel={slot.label}
+                    tgtCal={tgtCal}
+                    tgtPro={tgtPro}
+                    recipe={r}
+                    scale={p.scale ?? 1}
+                    isLogged={loggedNames.has(r.name)}
+                    onSwap={() => handleSwap(idx)}
+                    onLog={() => handleLogPlanItem(idx)}
+                    servingSplit={servingSplit}
+                  />
+                </StaggerItem>
               );
             })}
-          </div>
+          </StaggerList>
         </>
       )}
 
       {(todayMeals.length > 0 || (householdMode && partnerMeals.length > 0)) && (
         <Card title="Today's Log">
-          <div className="space-y-2">
-            {todayMeals.map((m) => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2">
-                <div>
-                  <strong className="text-sm">{m.name}</strong>
-                  <div className="text-xs text-text-muted">
-                    {m.calories} kcal · P{m.protein}g · C{m.carbs}g · F{m.fat}g
-                    {householdMode && profile && <span> · {profile.name}</span>}
+          <StaggerList className="space-y-2">
+            <AnimatePresence initial={false}>
+              {todayMeals.map((m) => (
+                <motion.div
+                  key={m.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2"
+                >
+                  <div>
+                    <strong className="text-sm">{m.name}</strong>
+                    <div className="text-xs text-text-muted">
+                      {m.calories} kcal · P{m.protein}g · C{m.carbs}g · F{m.fat}g
+                      {householdMode && profile && <span> · {profile.name}</span>}
+                    </div>
                   </div>
-                </div>
-                <button className="text-accent" onClick={() => handleDeleteMeal(m.id)}>
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <button className="text-accent transition-transform hover:scale-110 active:scale-90" onClick={() => handleDeleteMeal(m.id)}>
+                    ✕
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {householdMode &&
               partnerMeals.map((m) => (
                 <div key={`partner-${m.id}`} className="flex items-center justify-between rounded-lg bg-surface2/50 px-3 py-2 opacity-80">
@@ -507,9 +556,18 @@ export default function Meals() {
                   </div>
                 </div>
               ))}
-          </div>
+          </StaggerList>
         </Card>
       )}
+
+      <CustomIngredients
+        profileId={pid}
+        date={today}
+        onLogged={async () => setTodayMeals(await getMealsForDate(pid, today))}
+        onIngredientsChanged={() => {
+          if (baseTargets) setPlan(loadPlan(planOwnerId, today, activeDiets, baseTargets, effectiveBudget));
+        }}
+      />
 
       {showCustomForm && (
         <Card title="Log Custom Meal">
@@ -560,8 +618,8 @@ export default function Meals() {
               />
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="btn-primary flex-1">
-                Save
+              <button type="submit" className="btn-primary flex-1 disabled:cursor-not-allowed" disabled={customSaving}>
+                {customSaving ? <Spinner /> : 'Save'}
               </button>
               <button type="button" className="btn-secondary" onClick={() => setShowCustomForm(false)}>
                 Cancel
@@ -576,10 +634,24 @@ export default function Meals() {
   );
 }
 
+function Spinner() {
+  return (
+    <span className="inline-flex items-center justify-center gap-2">
+      <motion.span
+        className="h-3.5 w-3.5 rounded-full border-2 border-bg/40 border-t-bg"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+      />
+    </span>
+  );
+}
+
 function Stat({ value, label, accent }: { value: number; label: string; accent?: boolean }) {
   return (
     <div>
-      <div className={`text-xl font-bold ${accent ? 'text-accent' : ''}`}>{value}</div>
+      <div className={`text-xl font-bold ${accent ? 'text-accent' : ''}`}>
+        <AnimatedNumber value={value} />
+      </div>
       <div className="text-[0.65rem] text-text-muted">{label}</div>
     </div>
   );
@@ -595,9 +667,7 @@ function MacroBar({ label, eaten, target, color }: { label: string; eaten: numbe
           {eaten}g / {target}g
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-surface2">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
+      <ProgressBar pct={pct} className="h-1.5" color={color} />
     </div>
   );
 }

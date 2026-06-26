@@ -3,6 +3,20 @@ import { calcMacros, applyDietProteinModifier } from './macros';
 
 const HOUSEHOLD_DIET_KEY = 'fitx_household_diet';
 const HOUSEHOLD_BUDGET_KEY = 'fitx_household_budget';
+const HOUSEHOLD_MODE_KEY = 'fitx_household_mode';
+
+/**
+ * "Cook together" must survive navigating away and back — it was plain component
+ * state before, so leaving the Meals tab silently reset it to off and made the
+ * combined plan look like it had stopped combining anything.
+ */
+export function getHouseholdModeOn(): boolean {
+  return localStorage.getItem(HOUSEHOLD_MODE_KEY) === '1';
+}
+
+export function setHouseholdModeOn(on: boolean): void {
+  localStorage.setItem(HOUSEHOLD_MODE_KEY, on ? '1' : '0');
+}
 
 // The app's profile switcher only ever toggles between these two fixed IDs,
 // so a "household" is always this pair — no partner-linking UI needed.

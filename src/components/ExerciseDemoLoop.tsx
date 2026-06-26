@@ -23,7 +23,7 @@ export default function ExerciseDemoLoop({ name }: { name: string }) {
         className="max-h-80 w-full object-contain bg-black"
         onError={() => setFailed(true)}
       />
-      <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-white">
+      <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-bg">
         Demo Loop
       </span>
     </div>

@@ -5,6 +5,8 @@ import { addSleepLog, getSleepLogs } from '../lib/db';
 import type { SleepLog } from '../types';
 import Card from '../components/Card';
 import SleepChart from '../components/SleepChart';
+import { StaggerList, StaggerItem } from '../components/motion';
+import { motion } from 'framer-motion';
 
 export default function Sleep() {
   const pid = getActiveProfileId();
@@ -13,6 +15,7 @@ export default function Sleep() {
   const [bedtime, setBedtime] = useState('22:30');
   const [waketime, setWaketime] = useState('06:30');
   const [quality, setQuality] = useState(3);
+  const [saving, setSaving] = useState(false);
 
   const reload = async () => {
     const all = await getSleepLogs(pid);
@@ -25,22 +28,27 @@ export default function Sleep() {
   }, []);
 
   const save = async () => {
-    const bed = dayjs(`${date} ${bedtime}`);
-    let wake = dayjs(`${date} ${waketime}`);
-    if (wake.isBefore(bed)) wake = wake.add(1, 'day');
-    const mins = wake.diff(bed, 'minute');
+    setSaving(true);
+    try {
+      const bed = dayjs(`${date} ${bedtime}`);
+      let wake = dayjs(`${date} ${waketime}`);
+      if (wake.isBefore(bed)) wake = wake.add(1, 'day');
+      const mins = wake.diff(bed, 'minute');
 
-    await addSleepLog({
-      profileId: pid,
-      date,
-      bedtime,
-      waketime,
-      quality,
-      durationH: Math.floor(mins / 60),
-      durationM: mins % 60,
-      loggedAt: new Date().toISOString(),
-    });
-    reload();
+      await addSleepLog({
+        profileId: pid,
+        date,
+        bedtime,
+        waketime,
+        quality,
+        durationH: Math.floor(mins / 60),
+        durationM: mins % 60,
+        loggedAt: new Date().toISOString(),
+      });
+      await reload();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const recent = logs.slice(0, 5);
@@ -75,33 +83,43 @@ export default function Sleep() {
               ))}
             </select>
           </label>
-          <button className="btn-primary mt-2 w-full" onClick={save}>
-            Save
+          <button className="btn-primary mt-2 w-full disabled:cursor-not-allowed" onClick={save} disabled={saving}>
+            {saving ? (
+              <motion.span
+                className="mx-auto inline-block h-3.5 w-3.5 rounded-full border-2 border-bg/40 border-t-bg"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+              />
+            ) : (
+              'Save'
+            )}
           </button>
         </div>
       </Card>
 
-      <Card title="Recent sleep (14 days)">
+      <Card title="Recent sleep (14 days)" delay={0.1}>
         {logs.length ? (
           <>
             <div className="h-40">
               <SleepChart logs={logs} />
             </div>
-            <div className="mt-3 space-y-2">
+            <StaggerList className="mt-3 space-y-2">
               {recent.map((l, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2">
-                  <div>
-                    <div className="text-sm font-semibold">{l.date}</div>
-                    <div className="text-xs text-text-muted">
-                      {l.bedtime} → {l.waketime}
+                <StaggerItem key={i}>
+                  <div className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2 transition-colors hover:bg-border/50">
+                    <div>
+                      <div className="text-sm font-semibold">{l.date}</div>
+                      <div className="text-xs text-text-muted">
+                        {l.bedtime} → {l.waketime}
+                      </div>
                     </div>
+                    <span className="text-sm">
+                      {l.durationH}h {l.durationM}m {'⭐'.repeat(l.quality)}
+                    </span>
                   </div>
-                  <span className="text-sm">
-                    {l.durationH}h {l.durationM}m {'⭐'.repeat(l.quality)}
-                  </span>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerList>
           </>
         ) : (
           <p className="text-sm text-text-muted">No sleep logged yet.</p>

@@ -38,4 +38,30 @@ export async function syncGist(): Promise<void> {
       files: { 'fitx-data.json': { content: JSON.stringify(payload, null, 2) } },
     }),
   });
+  localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+}
+
+const LAST_SYNC_KEY = 'fitx_gist_last_sync';
+const AUTO_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+
+export function getLastSyncedAt(): string | null {
+  return localStorage.getItem(LAST_SYNC_KEY);
+}
+
+let autoSyncStarted = false;
+
+/**
+ * Once a Gist is configured, sync should just happen in the background — no manual
+ * "Sync now" clicks needed. Pushes immediately, then every few minutes while the app
+ * is open. Silently no-ops (and is safe to call repeatedly) when not configured.
+ */
+export function initAutoSync(): void {
+  if (autoSyncStarted) return;
+  autoSyncStarted = true;
+  const { gistId, pat } = getGistConfig();
+  if (!gistId || !pat) return;
+  syncGist().catch(() => {});
+  setInterval(() => {
+    syncGist().catch(() => {});
+  }, AUTO_SYNC_INTERVAL_MS);
 }

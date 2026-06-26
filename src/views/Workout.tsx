@@ -4,22 +4,16 @@ import exercises from '../data/exercises';
 import type { Exercise, MuscleGroup, WorkoutSession } from '../types';
 import { getActiveProfileId } from '../lib/storage';
 import { getSessions } from '../lib/db';
-import { getSuggestion, type Suggestion } from '../lib/orm';
 import { estimate1RM, save1RM } from '../lib/orm';
 import { getTodaysFocus, SPLIT_LABEL } from '../lib/workoutSplit';
 import { useProfile } from '../lib/ProfileContext';
 import Card from '../components/Card';
-import SuggestionCard from '../components/SuggestionCard';
 import SessionForm from '../components/SessionForm';
 import ExerciseDetail from '../components/ExerciseDetail';
+import { StaggerList, StaggerItem } from '../components/motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MAJOR_LIFTS = ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press'];
-const MAJOR_LIFT_MUSCLE: Record<string, MuscleGroup> = {
-  Squat: 'Legs',
-  'Bench Press': 'Chest',
-  Deadlift: 'Back',
-  'Overhead Press': 'Shoulders',
-};
 const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'];
 const MUSCLE_ICON: Record<MuscleGroup, string> = {
   Chest: '🏋️',
@@ -45,7 +39,6 @@ export default function Workout() {
   const today = dayjs().format('YYYY-MM-DD');
 
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-  const [suggestions, setSuggestions] = useState<Record<string, Suggestion>>({});
   const [search, setSearch] = useState('');
   const [activeMuscle, setActiveMuscle] = useState<MuscleGroup | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
@@ -57,15 +50,11 @@ export default function Workout() {
   const [ormWeight, setOrmWeight] = useState('');
   const [ormReps, setOrmReps] = useState(1);
   const [ormResult, setOrmResult] = useState<string | null>(null);
+  const [ormSaving, setOrmSaving] = useState(false);
 
   const reloadData = async () => {
     const all = await getSessions(pid);
     setSessions(all.sort((a, b) => b.date.localeCompare(a.date)));
-    const sugg: Record<string, Suggestion> = {};
-    for (const lift of MAJOR_LIFTS) {
-      sugg[lift] = await getSuggestion(pid, lift);
-    }
-    setSuggestions(sugg);
   };
 
   useEffect(() => {
@@ -85,12 +74,6 @@ export default function Workout() {
       byMuscle[m] = exercises.filter((ex) => ex.muscle === m).slice(0, RECOMMENDED_PER_MUSCLE);
     });
     return byMuscle;
-  }, [focus]);
-
-  const relevantMajorLifts = useMemo(() => {
-    if (!focus || focus.isRest || !focus.muscles) return MAJOR_LIFTS;
-    const matches = MAJOR_LIFTS.filter((l) => focus.muscles!.includes(MAJOR_LIFT_MUSCLE[l]));
-    return matches.length ? matches : MAJOR_LIFTS;
   }, [focus]);
 
   const filtered = useMemo(() => {
@@ -117,12 +100,17 @@ export default function Workout() {
       alert('Enter a weight.');
       return;
     }
-    const value = ormReps === 1 ? weight : estimate1RM(weight, ormReps);
-    const method = ormReps === 1 ? 'Tested 1RM' : `Estimated from ${ormReps} reps @ ${weight}kg`;
-    await save1RM(pid, ormLift, value, method);
-    setOrmResult(`✓ ${ormLift} 1RM saved: ${value} kg${ormReps > 1 ? ` (${method})` : ''}`);
-    setOrmWeight('');
-    reloadData();
+    setOrmSaving(true);
+    try {
+      const value = ormReps === 1 ? weight : estimate1RM(weight, ormReps);
+      const method = ormReps === 1 ? 'Tested 1RM' : `Estimated from ${ormReps} reps @ ${weight}kg`;
+      await save1RM(pid, ormLift, value, method);
+      setOrmResult(`✓ ${ormLift} 1RM saved: ${value} kg${ormReps > 1 ? ` (${method})` : ''}`);
+      setOrmWeight('');
+      await reloadData();
+    } finally {
+      setOrmSaving(false);
+    }
   };
 
   if (selectedExercise) {
@@ -166,37 +154,34 @@ export default function Workout() {
       )}
 
       {!focus?.isRest && Object.keys(recommended).length > 0 && (
-        <Card title="Recommended Exercises">
+        <Card title="Recommended Exercises" delay={0.05}>
+          <p className="mb-3 text-xs text-text-muted">Tap an exercise to log your sets — the logger opens right at the top, no scrolling needed.</p>
           <div className="space-y-4">
             {Object.entries(recommended).map(([muscle, exs]) => (
               <div key={muscle}>
                 <div className="mb-2 text-sm font-semibold text-accent2">
                   {MUSCLE_ICON[muscle as MuscleGroup]} {muscle}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <StaggerList className="flex flex-wrap gap-1.5">
                   {exs.map((ex) => (
-                    <button
-                      key={ex.name}
-                      onClick={() => setSelectedExercise(ex)}
-                      className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium hover:bg-border"
-                    >
-                      {EQUIPMENT_ICON[ex.equipment]} {ex.name}
-                    </button>
+                    <StaggerItem key={ex.name} className="inline-block">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.93 }}
+                        onClick={() => setSelectedExercise(ex)}
+                        className="flex items-center gap-1.5 rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-border"
+                      >
+                        {EQUIPMENT_ICON[ex.equipment]} {ex.name}
+                        <span className="rounded-full bg-accent px-1.5 py-0.5 text-[0.62rem] font-bold text-bg">+ Log</span>
+                      </motion.button>
+                    </StaggerItem>
                   ))}
-                </div>
+                </StaggerList>
               </div>
             ))}
           </div>
         </Card>
       )}
-
-      <Card title="Suggestions for today">
-        <div className="grid grid-cols-2 gap-2">
-          {relevantMajorLifts.map((lift) => (
-            <SuggestionCard key={lift} lift={lift} suggestion={suggestions[lift] ?? null} />
-          ))}
-        </div>
-      </Card>
 
       <Card title="Log / Estimate 1RM">
         <div className="grid grid-cols-3 gap-2">
@@ -231,10 +216,21 @@ export default function Workout() {
             />
           </label>
         </div>
-        <button className="btn-secondary mt-3 w-full" onClick={saveOrm}>
-          Save 1RM
+        <button className="btn-secondary mt-3 w-full disabled:cursor-not-allowed" onClick={saveOrm} disabled={ormSaving}>
+          {ormSaving ? <InlineSpinner /> : 'Save 1RM'}
         </button>
-        {ormResult && <div className="mt-2 rounded-lg bg-success/10 p-2 text-sm text-success">{ormResult}</div>}
+        <AnimatePresence>
+          {ormResult && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-2 overflow-hidden rounded-lg bg-success/10 p-2 text-sm text-success"
+            >
+              {ormResult}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Card>
 
       {showSessionForm ? (
@@ -272,7 +268,7 @@ export default function Workout() {
             <button
               onClick={() => setActiveMuscle(null)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                !activeMuscle ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+                !activeMuscle ? 'bg-accent text-bg' : 'bg-surface2 text-text-muted'
               }`}
             >
               🍽️ All
@@ -282,7 +278,7 @@ export default function Workout() {
                 key={m}
                 onClick={() => setActiveMuscle(m)}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                  activeMuscle === m ? 'bg-accent text-white' : 'bg-surface2 text-text-muted'
+                  activeMuscle === m ? 'bg-accent text-bg' : 'bg-surface2 text-text-muted'
                 }`}
               >
                 {MUSCLE_ICON[m]} {m}
@@ -296,17 +292,20 @@ export default function Workout() {
                 <div className="mb-2 text-sm font-semibold text-accent2">
                   {MUSCLE_ICON[muscle as MuscleGroup]} {muscle}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <StaggerList className="flex flex-wrap gap-1.5">
                   {exs.map((ex) => (
-                    <button
-                      key={ex.name}
-                      onClick={() => setSelectedExercise(ex)}
-                      className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium hover:bg-border"
-                    >
-                      {EQUIPMENT_ICON[ex.equipment]} {ex.name}
-                    </button>
+                    <StaggerItem key={ex.name} className="inline-block">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.93 }}
+                        onClick={() => setSelectedExercise(ex)}
+                        className="rounded-full bg-surface2 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-border"
+                      >
+                        {EQUIPMENT_ICON[ex.equipment]} {ex.name}
+                      </motion.button>
+                    </StaggerItem>
                   ))}
-                </div>
+                </StaggerList>
               </div>
             ))}
           </div>
@@ -315,25 +314,39 @@ export default function Workout() {
 
       <Card title="Recent Sessions">
         {recent.length ? (
-          <div className="space-y-2">
+          <StaggerList className="space-y-2">
             {recent.map((s, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2">
-                <div>
-                  <div className="text-sm font-semibold">{s.date}</div>
-                  <div className="text-xs text-text-muted">
-                    {(s.entries || []).map((e) => e.exercise).join(', ').slice(0, 60) || 'No exercises'}
+              <StaggerItem key={i}>
+                <div className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2 transition-colors hover:bg-border/50">
+                  <div>
+                    <div className="text-sm font-semibold">{s.date}</div>
+                    <div className="text-xs text-text-muted">
+                      {(s.entries || []).map((e) => e.exercise).join(', ').slice(0, 60) || 'No exercises'}
+                    </div>
                   </div>
+                  <span className="text-xs font-semibold text-accent">
+                    {(s.entries || []).reduce((a, e) => a + (e.sets || 0), 0)} sets
+                  </span>
                 </div>
-                <span className="text-xs font-semibold text-accent">
-                  {(s.entries || []).reduce((a, e) => a + (e.sets || 0), 0)} sets
-                </span>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerList>
         ) : (
           <p className="text-sm text-text-muted">No sessions yet — log your first one above.</p>
         )}
       </Card>
     </div>
+  );
+}
+
+function InlineSpinner() {
+  return (
+    <span className="inline-flex items-center justify-center">
+      <motion.span
+        className="h-3.5 w-3.5 rounded-full border-2 border-text-muted/40 border-t-text"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+      />
+    </span>
   );
 }

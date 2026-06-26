@@ -59,6 +59,7 @@ export interface WorkoutSet {
   sets: number;
   reps: number;
   weight: number;
+  perSet?: { reps: number; weight: number }[];
 }
 
 export interface WorkoutSession {

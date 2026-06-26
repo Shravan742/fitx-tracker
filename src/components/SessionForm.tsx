@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import exercises from '../data/exercises';
 import { addSession, getSessionForDate, updateSession } from '../lib/db';
 import type { WorkoutSet } from '../types';
@@ -25,6 +26,7 @@ export default function SessionForm({
   const [weight, setWeight] = useState(0);
   const [repsDone, setRepsDone] = useState(8);
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const addEntry = () => {
     setEntries((e) => [...e, { exercise: exName, sets, reps, weight, repsCompleted: repsDone }]);
@@ -39,27 +41,32 @@ export default function SessionForm({
       alert('Add at least one exercise.');
       return;
     }
-    const newEntries: WorkoutSet[] = entries.map((e) => ({
-      exercise: e.exercise,
-      sets: e.sets,
-      reps: e.reps,
-      weight: e.weight,
-    }));
+    setSaving(true);
+    try {
+      const newEntries: WorkoutSet[] = entries.map((e) => ({
+        exercise: e.exercise,
+        sets: e.sets,
+        reps: e.reps,
+        weight: e.weight,
+      }));
 
-    // Merge into today's existing session (e.g. one started by quick-logging an
-    // exercise from its detail view) instead of creating a second row for the
-    // same day, which would fragment Recent Sessions and the 1RM suggestions.
-    const existing = await getSessionForDate(pid, date);
-    if (existing) {
-      await updateSession({
-        ...existing,
-        entries: [...existing.entries, ...newEntries],
-        notes: notes || existing.notes,
-      });
-    } else {
-      await addSession({ profileId: pid, date, entries: newEntries, notes });
+      // Merge into today's existing session (e.g. one started by quick-logging an
+      // exercise from its detail view) instead of creating a second row for the
+      // same day, which would fragment Recent Sessions and the 1RM suggestions.
+      const existing = await getSessionForDate(pid, date);
+      if (existing) {
+        await updateSession({
+          ...existing,
+          entries: [...existing.entries, ...newEntries],
+          notes: notes || existing.notes,
+        });
+      } else {
+        await addSession({ profileId: pid, date, entries: newEntries, notes });
+      }
+      onDone();
+    } finally {
+      setSaving(false);
     }
-    onDone();
   };
 
   return (
@@ -69,20 +76,30 @@ export default function SessionForm({
       {entries.length === 0 && <p className="mb-3 text-sm text-text-muted">No exercises added yet.</p>}
 
       <div className="mb-3 space-y-2">
-        {entries.map((e, i) => (
-          <div key={i} className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2">
-            <div>
-              <div className="text-sm font-semibold">{e.exercise}</div>
-              <div className="text-xs text-text-muted">
-                {e.sets} × {e.reps} reps @ {e.weight}kg
-                {e.repsCompleted < e.reps && <span className="text-accent2"> ({e.repsCompleted} done)</span>}
+        <AnimatePresence initial={false}>
+          {entries.map((e, i) => (
+            <motion.div
+              key={i}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.22 }}
+              className="flex items-center justify-between rounded-lg bg-surface2 px-3 py-2"
+            >
+              <div>
+                <div className="text-sm font-semibold">{e.exercise}</div>
+                <div className="text-xs text-text-muted">
+                  {e.sets} × {e.reps} reps @ {e.weight}kg
+                  {e.repsCompleted < e.reps && <span className="text-accent2"> ({e.repsCompleted} done)</span>}
+                </div>
               </div>
-            </div>
-            <button onClick={() => removeEntry(i)} className="text-accent">
-              ✕
-            </button>
-          </div>
-        ))}
+              <button onClick={() => removeEntry(i)} className="text-accent transition-transform hover:scale-110 active:scale-90">
+                ✕
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       <div className="space-y-3 rounded-xl bg-surface2 p-3">
@@ -122,8 +139,16 @@ export default function SessionForm({
         <button className="btn-secondary" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn-primary flex-1" onClick={save}>
-          Save session
+        <button className="btn-primary flex-1 disabled:cursor-not-allowed" onClick={save} disabled={saving}>
+          {saving ? (
+            <motion.span
+              className="mx-auto inline-block h-3.5 w-3.5 rounded-full border-2 border-bg/40 border-t-bg"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+            />
+          ) : (
+            'Save session'
+          )}
         </button>
       </div>
     </div>

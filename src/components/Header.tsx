@@ -13,12 +13,17 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-bg/95 px-4 py-3 backdrop-blur-md">
-      <span className="gradient-text text-xl font-extrabold tracking-tight">FitX</span>
+      <div className="flex items-center gap-2">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-black text-bg">G</span>
+        <span className="text-xl font-black uppercase tracking-tight text-text">
+          Gym<span className="text-accent">OS</span>
+        </span>
+      </div>
       <button
         onClick={switchProfile}
         title={profile ? `Active: ${profile.name} — tap to switch` : 'No profile'}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-lg shadow-accent/20"
-        style={{ backgroundImage: 'linear-gradient(135deg, var(--color-accent), var(--color-pink))' }}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-bg shadow-lg shadow-accent/30"
+        style={{ backgroundImage: 'linear-gradient(135deg, var(--color-accent), var(--color-accent2))' }}
       >
         {profile?.name ? profile.name[0].toUpperCase() : '?'}
       </button>

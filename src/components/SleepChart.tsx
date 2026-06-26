@@ -15,7 +15,7 @@ export default function SleepChart({ logs }: { logs: SleepLog[] }) {
         {
           label: 'Hours',
           data: ordered.map((l) => +(l.durationH + l.durationM / 60).toFixed(1)),
-          backgroundColor: '#22d3eeaa',
+          backgroundColor: '#ff7a1aaa',
           borderRadius: 4,
         },
       ],
@@ -30,8 +30,8 @@ export default function SleepChart({ logs }: { logs: SleepLog[] }) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#8891b3', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#8891b3' }, grid: { color: '#262c4255' }, min: 0, max: 12 },
+          x: { ticks: { color: '#8d9a83', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#8d9a83' }, grid: { color: '#2a332655' }, min: 0, max: 12 },
         },
       }}
     />

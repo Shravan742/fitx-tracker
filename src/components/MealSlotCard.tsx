@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Recipe } from '../types';
 import { scaledMacros } from '../lib/mealPlan';
 
@@ -44,7 +45,11 @@ export default function MealSlotCard({
   const servingLabel = scale === 1 ? '1 serving' : scale < 1 ? `${scale}× serving` : `${scale}× servings`;
 
   return (
-    <div className={`overflow-hidden rounded-2xl border ${isLogged ? 'border-success/40' : 'border-border'} bg-card`}>
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className={`overflow-hidden rounded-2xl border ${isLogged ? 'border-success/40' : 'border-border'} bg-card shadow-[0_4px_20px_-8px_rgba(0,0,0,0.4)]`}
+    >
       <div className="flex items-center justify-between bg-surface2 px-4 py-2.5 text-sm">
         <span className="font-semibold text-accent2">
           {slotIcon} {slotLabel}
@@ -68,7 +73,7 @@ export default function MealSlotCard({
             <span className="h-2 w-2 rounded-full" style={{ background: DIET_COLOR[recipe.diet] || '#6366f1' }} />
             {recipe.cuisine} · {recipe.diet}
             {scale !== 1 && (
-              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[0.62rem] font-semibold text-white">
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[0.62rem] font-semibold text-bg">
                 {servingLabel}
               </span>
             )}
@@ -98,38 +103,54 @@ export default function MealSlotCard({
         📋 Ingredients &amp; Instructions {showDetails ? '▲' : '▼'}
       </button>
 
-      {showDetails && (
-        <div className="space-y-3 border-t border-border px-4 py-3 text-sm">
-          <div>
-            <strong className="text-xs">
-              Ingredients {scale !== 1 && <span className="text-text-muted">(scaled to {servingLabel})</span>}
-            </strong>
-            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-text-muted">
-              {recipe.ingredients.map((i, idx) => {
-                const qty = Math.round((i.grams || i.ml || 0) * scale);
-                return (
-                  <li key={idx}>
-                    {qty}
-                    {i.ml ? 'ml' : 'g'} {i.item}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <div>
-            <strong className="text-xs">Method</strong>
-            <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-text-muted">
-              {recipe.instructions.map((s, idx) => (
-                <li key={idx}>{s}</li>
-              ))}
-            </ol>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {showDetails && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-3 border-t border-border px-4 py-3 text-sm">
+              <div>
+                <strong className="text-xs">
+                  Ingredients {scale !== 1 && <span className="text-text-muted">(scaled to {servingLabel})</span>}
+                </strong>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-text-muted">
+                  {recipe.ingredients.map((i, idx) => {
+                    const qty = Math.round((i.grams || i.ml || 0) * scale);
+                    return (
+                      <li key={idx}>
+                        {qty}
+                        {i.ml ? 'ml' : 'g'} {i.item}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <div>
+                <strong className="text-xs">Method</strong>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-text-muted">
+                  {recipe.instructions.map((s, idx) => (
+                    <li key={idx}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex gap-2 px-4 pb-3">
         {isLogged ? (
-          <span className="rounded-lg bg-success/15 px-3 py-1.5 text-xs font-semibold text-success">✓ Logged</span>
+          <motion.span
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="rounded-lg bg-success/15 px-3 py-1.5 text-xs font-semibold text-success"
+          >
+            ✓ Logged
+          </motion.span>
         ) : (
           <>
             <button className="btn-secondary btn-sm" onClick={onSwap}>
@@ -141,6 +162,6 @@ export default function MealSlotCard({
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

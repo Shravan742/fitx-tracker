@@ -9,6 +9,7 @@ import { computeWeightTrend } from '../lib/weightTrend';
 import type { MealLog, SleepLog, WeightEntry } from '../types';
 import Card from '../components/Card';
 import WeightChart from '../components/WeightChart';
+import { AnimatedNumber, ProgressBar, StaggerList, StaggerItem } from '../components/motion';
 
 function greeting() {
   const h = new Date().getHours();
@@ -90,66 +91,73 @@ export default function Dashboard() {
   if (!profile) return null;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold">
-        Good {greeting()}, {profile.name}
-      </h1>
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Good {greeting()}</p>
+        <h1 className="text-2xl font-black tracking-tight">{profile.name}</h1>
+      </div>
 
       {macros && (
-        <Card title="Today's macros">
-          <div className="mb-2 flex items-baseline justify-between">
-            <span className="text-3xl font-bold">{eaten.calories}</span>
-            <span className="text-sm text-text-muted">/ {macros.calories} kcal</span>
+        <Card variant="glow" delay={0.05} className="!p-5">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Today's calories</div>
+          <div className="mb-3 flex items-baseline gap-2">
+            <AnimatedNumber value={eaten.calories} className="text-4xl font-black tracking-tight text-text" />
+            <span className="text-sm font-medium text-text-muted">/ {macros.calories} kcal</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-surface2">
-            <div
-              className="h-full rounded-full bg-accent transition-all"
-              style={{ width: `${Math.min(100, (eaten.calories / macros.calories) * 100)}%` }}
-            />
-          </div>
+          <ProgressBar
+            pct={(eaten.calories / macros.calories) * 100}
+            className="h-2.5"
+            gradient="linear-gradient(135deg, var(--color-accent), var(--color-accent2))"
+          />
           <div className="mt-4 grid grid-cols-3 gap-2">
             <MacroPill value={`${eaten.protein}g`} label={`Protein / ${macros.protein}g`} color="text-info" />
             <MacroPill value={`${eaten.carbs}g`} label={`Carbs / ${macros.carbs}g`} color="text-accent2" />
-            <MacroPill value={`${eaten.fat}g`} label={`Fat / ${macros.fat}g`} color="text-pink-300" />
+            <MacroPill value={`${eaten.fat}g`} label={`Fat / ${macros.fat}g`} color="text-pink" />
           </div>
         </Card>
       )}
 
-      {remaining && (
-        <Card title="Remaining today">
-          <div className="grid grid-cols-2 gap-2">
-            <MacroPill value={String(remaining.calories)} label="kcal left" color="text-accent" big />
-            <MacroPill value={`${remaining.protein}g`} label="protein left" color="text-info" big />
-          </div>
-        </Card>
-      )}
+      <div className="grid grid-cols-2 gap-3">
+        {remaining && (
+          <Card variant="stat" delay={0.1} className="!p-3.5">
+            <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-text-muted">Kcal left</div>
+            <AnimatedNumber value={remaining.calories} className="text-2xl font-black text-accent" />
+          </Card>
+        )}
+        {lastSleep && (
+          <Card variant="stat" delay={0.15} className="!p-3.5">
+            <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-text-muted">Last sleep</div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-text">
+                {lastSleep.durationH}h{lastSleep.durationM}m
+              </span>
+              <span className="text-lg">{QUALITY_EMOJI[lastSleep.quality] || '😐'}</span>
+            </div>
+          </Card>
+        )}
+      </div>
 
-      {lastSleep && (
-        <Card title="Last night's sleep">
-          <div className="flex items-center justify-between">
-            <span className="text-2xl font-bold">
-              {lastSleep.durationH}h {lastSleep.durationM}m
-            </span>
-            <span className="text-2xl">{QUALITY_EMOJI[lastSleep.quality] || '😐'}</span>
-          </div>
-        </Card>
-      )}
-
-      <Card title="Quick actions">
-        <div className="flex flex-col gap-2">
-          <button className="btn-secondary" onClick={() => navigate('/workout')}>
-            Log workout
-          </button>
-          <button className="btn-secondary" onClick={() => navigate('/meals')}>
-            Log meal
-          </button>
-          <button className="btn-secondary" onClick={() => navigate('/sleep')}>
-            Log sleep
-          </button>
-        </div>
+      <Card title="Quick actions" delay={0.2}>
+        <StaggerList className="flex flex-col gap-2">
+          <StaggerItem>
+            <button className="btn-secondary w-full" onClick={() => navigate('/workout')}>
+              Log workout
+            </button>
+          </StaggerItem>
+          <StaggerItem>
+            <button className="btn-secondary w-full" onClick={() => navigate('/meals')}>
+              Log meal
+            </button>
+          </StaggerItem>
+          <StaggerItem>
+            <button className="btn-secondary w-full" onClick={() => navigate('/sleep')}>
+              Log sleep
+            </button>
+          </StaggerItem>
+        </StaggerList>
       </Card>
 
-      <Card title="Weight tracking">
+      <Card title="Weight tracking" delay={0.25}>
         <div className="mb-3 flex gap-2">
           <input
             type="number"
@@ -194,6 +202,7 @@ export default function Dashboard() {
       </Card>
 
       <Card
+        delay={0.3}
         title={
           <span>
             Profile — <span className="rounded-full bg-accent/20 px-2 py-0.5 text-accent">{profile.goal}</span>
@@ -224,15 +233,19 @@ function MacroPill({
   label,
   color,
   big,
+  suffix = '',
 }: {
-  value: string;
+  value: string | number;
   label: string;
   color: string;
   big?: boolean;
+  suffix?: string;
 }) {
   return (
-    <div className="rounded-xl bg-surface2 p-2.5 text-center">
-      <div className={`font-bold ${color} ${big ? 'text-2xl' : 'text-lg'}`}>{value}</div>
+    <div className="rounded-xl bg-surface2 p-2.5 text-center transition-colors">
+      <div className={`font-bold ${color} ${big ? 'text-2xl' : 'text-lg'}`}>
+        {typeof value === 'number' ? <AnimatedNumber value={value} suffix={suffix} /> : value}
+      </div>
       <div className="text-[0.68rem] text-text-muted">{label}</div>
     </div>
   );

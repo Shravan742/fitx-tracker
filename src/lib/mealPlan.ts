@@ -53,10 +53,18 @@ export function getPlanKey(
   return `fitx_plan_v5_${profileId}_${date}_${[...diets].sort().join(',') || 'all'}${macroSig}${budgetSig}`;
 }
 
+/**
+ * Protein is weighted ~2.5x calories, and falling short of the protein target is
+ * penalized harder than overshooting it — recipes were consistently landing the plan
+ * around 75% of the protein target while still hitting ~95%+ of calories, because
+ * equal weighting let calorie-accuracy dominate the pick even when a higher-protein
+ * candidate was available at a similar calorie fit.
+ */
 function macroScore(r: Recipe, scale: number, tgtCal: number, tgtPro: number): number {
   const calErr = Math.abs(r.macros.calories * scale - tgtCal) / tgtCal;
-  const proErr = Math.abs(r.macros.protein * scale - tgtPro) / Math.max(tgtPro, 1);
-  return calErr + proErr;
+  const proDelta = (r.macros.protein * scale - tgtPro) / Math.max(tgtPro, 1);
+  const proErr = proDelta < 0 ? Math.abs(proDelta) * 2 : proDelta * 0.5;
+  return calErr + proErr * 2.5;
 }
 
 /**

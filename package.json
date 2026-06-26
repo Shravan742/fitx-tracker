@@ -1,5 +1,5 @@
 {
-  "name": "fitx-new",
+  "name": "gymos-tracker",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,6 +12,7 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.21",
+    "framer-motion": "^12.42.0",
     "idb": "^8.0.3",
     "react": "^19.2.6",
     "react-body-highlighter": "^2.0.5",

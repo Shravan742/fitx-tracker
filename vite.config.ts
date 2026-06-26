@@ -13,12 +13,12 @@ export default defineConfig(({ command }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'FitX Tracker',
-        short_name: 'FitX',
+        name: 'GymOS',
+        short_name: 'GymOS',
         start_url: '.',
         display: 'standalone',
-        background_color: '#0f1320',
-        theme_color: '#0f1320',
+        background_color: '#0a0d0a',
+        theme_color: '#0a0d0a',
         icons: [],
       },
       workbox: {

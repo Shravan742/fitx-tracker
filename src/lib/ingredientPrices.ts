@@ -6,6 +6,8 @@
 // cheap staples (oats, lentils, quark, potato) are rewarded even within pricier diet
 // categories, and premium ingredients (salmon, halloumi, nuts) are priced accurately.
 
+import { findCustomIngredientByName } from './customIngredients';
+
 interface PriceEntry {
   keywords: string[];
   pricePer100: number; // EUR per 100g or 100ml
@@ -80,6 +82,9 @@ const PRICE_TABLE: PriceEntry[] = [
 const DEFAULT_PRICE_PER_100 = 0.5;
 
 function priceForIngredient(name: string): number {
+  const custom = findCustomIngredientByName(name);
+  if (custom?.pricePer100 != null) return custom.pricePer100;
+
   const lower = name.toLowerCase();
   for (const entry of PRICE_TABLE) {
     if (entry.keywords.some((kw) => lower.includes(kw))) return entry.pricePer100;
