@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { ActivityLevel, Goal, Profile, Sex, Weekday } from '../types';
 import { getActiveProfileId } from '../lib/storage';
 import { useProfile } from '../lib/ProfileContext';
+import { useAuth } from '../lib/AuthContext';
 
 const STEPS = ['Basic info', 'Activity', 'Goal', 'Rest days', 'Budget', 'Review'] as const;
 
@@ -18,6 +19,7 @@ const WEEKDAYS: [Weekday, string][] = [
 
 export default function Onboarding() {
   const { saveProfile } = useProfile();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<Partial<Profile>>({
     name: '',
@@ -59,6 +61,7 @@ export default function Onboarding() {
       const id = getActiveProfileId();
       const profile: Profile = {
         id,
+        email: user?.email ?? undefined,
         name: data.name!.trim(),
         age: data.age!,
         sex: data.sex as Sex,

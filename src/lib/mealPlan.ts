@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import recipes from '../data/recipes';
 import type { Diet, Macros, PlanEntry, Recipe } from '../types';
-import { getMealsForDate } from './db';
+import { getMealsForDate } from './firestoreDb';
 import { estimateRecipeCostPerServing, estimateSlotCost } from './recipeCost';
 
 interface MealSlot {

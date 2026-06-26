@@ -1,8 +1,8 @@
 # GymOS
 
-Personal fitness tracker: adaptive meal planning, workout library with anatomical muscle diagrams, 1RM tracking, sleep logging, and weight trend tracking — offline-first PWA on GitHub Pages.
+Multi-user fitness tracker with real accounts: adaptive meal planning, partner invite/accept linking for shared "Cook together" plans, workout library with anatomical muscle diagrams, 1RM tracking, sleep logging, and weight trend tracking — offline-first PWA on Firebase Hosting.
 
-**Stack:** React 19 + TypeScript + Vite + Tailwind CSS v4, IndexedDB (via `idb`), Chart.js, [`react-body-highlighter`](https://github.com/Stomatos/react-body-highlighter) for anatomical muscle diagrams.
+**Stack:** React 19 + TypeScript + Vite + Tailwind CSS v4, Firebase (Auth + Firestore), Chart.js, [`react-body-highlighter`](https://github.com/Stomatos/react-body-highlighter) for anatomical muscle diagrams.
 
 ## Features
 
@@ -20,6 +20,13 @@ npm run dev      # dev server
 npm run build    # production build → dist/
 ```
 
+## Setup
+
+Create a Firebase project (Auth with Email/Password enabled, Firestore in production mode), copy `.env.example` to `.env.local` and fill in the web app config from Project Settings.
+
 ## Deploy
 
-Builds to `dist/` with base path `/fitx-tracker/` for GitHub Pages.
+```bash
+npx firebase login    # one-time, opens a browser
+npm run deploy         # builds and deploys to Firebase Hosting
+```

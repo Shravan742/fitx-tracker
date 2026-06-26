@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each user has at most one active invite, keyed by their own uid as the doc ID.
+    // That makes "is otherUid my accepted partner" a deterministic get() lookup from
+    // either direction, without needing a Cloud Function to write a mutual link across
+    // two separate users' profile docs (which the basic Firebase plan can't do safely).
+    function isAcceptedPartner(otherUid) {
+      return
+        (exists(/databases/$(database)/documents/invites/$(otherUid))
+          && get(/databases/$(database)/documents/invites/$(otherUid)).data.status == 'accepted'
+          && get(/databases/$(database)/documents/invites/$(otherUid)).data.toUid == request.auth.uid)
+        ||
+        (exists(/databases/$(database)/documents/invites/$(request.auth.uid))
+          && get(/databases/$(database)/documents/invites/$(request.auth.uid)).data.status == 'accepted'
+          && get(/databases/$(database)/documents/invites/$(request.auth.uid)).data.toUid == otherUid);
+    }
+
+    match /profiles/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAcceptedPartner(uid));
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /meals/{id} {
+      allow read: if request.auth != null
+        && (resource.data.profileId == request.auth.uid || isAcceptedPartner(resource.data.profileId));
+      allow delete: if request.auth != null && resource.data.profileId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.profileId == request.auth.uid
+        && request.resource.data.profileId == request.auth.uid;
+    }
+
+    match /sessions/{id} {
+      allow read: if request.auth != null
+        && (resource.data.profileId == request.auth.uid || isAcceptedPartner(resource.data.profileId));
+      allow delete: if request.auth != null && resource.data.profileId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.profileId == request.auth.uid
+        && request.resource.data.profileId == request.auth.uid;
+    }
+
+    match /sleep/{id} {
+      allow read: if request.auth != null
+        && (resource.data.profileId == request.auth.uid || isAcceptedPartner(resource.data.profileId));
+      allow delete: if request.auth != null && resource.data.profileId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+    }
+
+    match /orm/{id} {
+      allow read, delete: if request.auth != null && resource.data.profileId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.profileId == request.auth.uid;
+    }
+
+    // Invite doc ID is always the sender's own uid (one active invite per sender).
+    match /invites/{inviteId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == inviteId || resource.data.toEmail == request.auth.token.email);
+      allow create: if request.auth != null
+        && request.auth.uid == inviteId
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if request.auth != null
+        && resource.data.toEmail == request.auth.token.email
+        && request.resource.data.fromUid == resource.data.fromUid
+        && request.resource.data.toEmail == resource.data.toEmail
+        && request.resource.data.toUid == request.auth.uid
+        && request.resource.data.status in ['accepted', 'declined'];
+      allow delete: if request.auth != null && request.auth.uid == inviteId;
+    }
+  }
+}

@@ -1,13 +1,15 @@
 import type { WeightEntry } from '../types';
+import { auth } from './firebase';
 
-const ACTIVE_KEY = 'fitx_activeProfile';
-
+/**
+ * The "active profile" is now just whichever Firebase account is signed in — there's
+ * no local two-slot switcher anymore. Views that call this assume App.tsx has already
+ * gated rendering behind a confirmed signed-in user, so currentUser is never null here.
+ */
 export function getActiveProfileId(): string {
-  return localStorage.getItem(ACTIVE_KEY) || 'user1';
-}
-
-export function setActiveProfileId(id: string): void {
-  localStorage.setItem(ACTIVE_KEY, id);
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('getActiveProfileId called with no signed-in user');
+  return uid;
 }
 
 export function getWeightHistory(profileId: string): WeightEntry[] {

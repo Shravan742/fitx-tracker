@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Profile } from '../types';
-import { getProfile, putProfile } from './db';
-import { getActiveProfileId } from './storage';
+import { getProfile, putProfile } from './firestoreDb';
+import { useAuth } from './AuthContext';
 
 interface ProfileContextValue {
   profile: Profile | null;
@@ -13,19 +13,26 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
+  const { user, authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const id = getActiveProfileId();
-    const p = await getProfile(id);
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const p = await getProfile(user.uid);
     setProfile(p ?? null);
     setLoading(false);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (authLoading) return;
     refresh();
-  }, [refresh]);
+  }, [authLoading, refresh]);
 
   const saveProfile = useCallback(async (p: Profile) => {
     await putProfile(p);
@@ -33,7 +40,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, refresh, saveProfile }}>
+    <ProfileContext.Provider value={{ profile, loading: authLoading || loading, refresh, saveProfile }}>
       {children}
     </ProfileContext.Provider>
   );

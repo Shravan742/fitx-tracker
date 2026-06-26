@@ -7,6 +7,7 @@ export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday'
 
 export interface Profile {
   id: string;
+  email?: string;
   name: string;
   age: number;
   sex: Sex;
@@ -31,7 +32,7 @@ export interface Macros {
 }
 
 export interface MealLog {
-  id?: number;
+  id?: string;
   profileId: string;
   date: string;
   name: string;
@@ -43,7 +44,7 @@ export interface MealLog {
 }
 
 export interface SleepLog {
-  id?: number;
+  id?: string;
   profileId: string;
   date: string;
   bedtime: string;
@@ -63,7 +64,7 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutSession {
-  id?: number;
+  id?: string;
   profileId: string;
   date: string;
   entries: WorkoutSet[];
@@ -71,7 +72,7 @@ export interface WorkoutSession {
 }
 
 export interface OneRepMax {
-  id?: number;
+  id?: string;
   profileId: string;
   lift: string;
   value: number;

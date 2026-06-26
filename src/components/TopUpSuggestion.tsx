@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { suggestTopUp } from '../lib/customIngredients';
-import { addMeal } from '../lib/db';
+import { addMeal } from '../lib/firestoreDb';
 
 export default function TopUpSuggestion({
   profileId,

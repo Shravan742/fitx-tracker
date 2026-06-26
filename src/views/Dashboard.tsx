@@ -3,12 +3,15 @@ import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../lib/ProfileContext';
 import { calcMacros } from '../lib/macros';
-import { getMealsForDate, getSleepLogs, putProfile } from '../lib/db';
+import { getMealsForDate, getSleepLogs, putProfile } from '../lib/firestoreDb';
 import { getActiveProfileId, getWeightHistory, logWeight, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
 import { computeWeightTrend } from '../lib/weightTrend';
 import type { MealLog, SleepLog, WeightEntry } from '../types';
+import { useAuth } from '../lib/AuthContext';
 import Card from '../components/Card';
 import WeightChart from '../components/WeightChart';
+import ImportLocalData from '../components/ImportLocalData';
+import IncomingInviteBanner from '../components/IncomingInviteBanner';
 import { AnimatedNumber, ProgressBar, StaggerList, StaggerItem } from '../components/motion';
 
 function greeting() {
@@ -22,6 +25,7 @@ const QUALITY_EMOJI = ['', '😴', '😐', '🙂', '😊', '🤩'];
 
 export default function Dashboard() {
   const { profile, refresh } = useProfile();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [lastSleep, setLastSleep] = useState<SleepLog | null>(null);
@@ -96,6 +100,9 @@ export default function Dashboard() {
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">Good {greeting()}</p>
         <h1 className="text-2xl font-black tracking-tight">{profile.name}</h1>
       </div>
+
+      <ImportLocalData uid={pid} />
+      {user?.email && <IncomingInviteBanner uid={pid} email={user.email} />}
 
       {macros && (
         <Card variant="glow" delay={0.05} className="!p-5">

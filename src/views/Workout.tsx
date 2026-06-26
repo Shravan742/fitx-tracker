@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import exercises from '../data/exercises';
 import type { Exercise, MuscleGroup, WorkoutSession } from '../types';
 import { getActiveProfileId } from '../lib/storage';
-import { getSessions } from '../lib/db';
+import { getSessions } from '../lib/firestoreDb';
 import { estimate1RM, save1RM } from '../lib/orm';
 import { getTodaysFocus, SPLIT_LABEL } from '../lib/workoutSplit';
 import { useProfile } from '../lib/ProfileContext';

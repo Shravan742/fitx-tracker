@@ -3,9 +3,10 @@ import { useProfile } from '../lib/ProfileContext';
 import { calcMacros } from '../lib/macros';
 import { getActiveProfileId, logWeight, clearPlanCache, clearWeeklyPlanCache } from '../lib/storage';
 import { get1RMHistory, estimate1RM, save1RM } from '../lib/orm';
-import { getGistConfig, setGistConfig, syncGist, getLastSyncedAt } from '../lib/sync';
+import { useAuth } from '../lib/AuthContext';
 import type { ActivityLevel, Goal, OneRepMax, Sex, Weekday } from '../types';
 import Card from '../components/Card';
+import PartnerLinkCard from '../components/PartnerLinkCard';
 import dayjs from 'dayjs';
 import { StaggerList, StaggerItem } from '../components/motion';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +25,7 @@ const WEEKDAYS: [Weekday, string][] = [
 
 export default function Profile() {
   const { profile, saveProfile } = useProfile();
+  const { user } = useAuth();
   const pid = getActiveProfileId();
   const [form, setForm] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -34,11 +36,6 @@ export default function Profile() {
   const [ormWeight, setOrmWeight] = useState('');
   const [ormReps, setOrmReps] = useState(1);
   const [ormSaving, setOrmSaving] = useState(false);
-
-  const [gist, setGist] = useState(getGistConfig());
-  const [syncing, setSyncing] = useState(false);
-  const [manageSync, setManageSync] = useState(false);
-  const isConnected = !!(gist.gistId && gist.pat);
 
   useEffect(() => {
     setForm(profile);
@@ -88,30 +85,11 @@ export default function Profile() {
     }
   };
 
-  const saveGistConfig = () => {
-    setGistConfig(gist.gistId, gist.pat);
-    setManageSync(false);
-    syncGist().catch(() => {});
-  };
-
-  const disconnectGist = () => {
-    setGistConfig('', '');
-    setGist({ gistId: '', pat: '' });
-    setManageSync(false);
-  };
-
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    try {
-      await syncGist();
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Profile</h1>
+
+      {user?.email && <PartnerLinkCard uid={pid} email={user.email} />}
 
       <Card title="Edit profile">
         <div className="space-y-3">
@@ -301,62 +279,6 @@ export default function Profile() {
             <p className="text-sm text-text-muted">No history for this lift yet.</p>
           )}
         </div>
-      </Card>
-
-      <Card title="Gist sync">
-        {isConnected && !manageSync ? (
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <span className="text-success">● Connected</span>
-              <span className="ml-2 text-xs text-text-muted">
-                syncing automatically{getLastSyncedAt() ? ` · last synced ${dayjs(getLastSyncedAt()!).format('HH:mm')}` : ''}
-              </span>
-            </div>
-            <button className="btn-secondary btn-sm" onClick={() => setManageSync(true)}>
-              Manage
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {!isConnected && (
-              <p className="text-xs text-text-muted">
-                Connect once and it syncs automatically in the background from then on — no need to click sync each time.
-              </p>
-            )}
-            <label className="block">
-              <span className="mb-1 block text-xs text-text-muted">Gist ID</span>
-              <input
-                className="input"
-                placeholder="your gist id"
-                value={gist.gistId}
-                onChange={(e) => setGist({ ...gist, gistId: e.target.value })}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-text-muted">Personal access token</span>
-              <input
-                type="password"
-                className="input"
-                placeholder="ghp_..."
-                value={gist.pat}
-                onChange={(e) => setGist({ ...gist, pat: e.target.value })}
-              />
-            </label>
-            <div className="flex gap-2">
-              <button className="btn-secondary flex-1" onClick={saveGistConfig}>
-                Save & connect
-              </button>
-              <button className="btn-secondary flex-1 disabled:cursor-not-allowed" onClick={handleSyncNow} disabled={syncing}>
-                {syncing ? <ButtonSpinner /> : 'Sync now'}
-              </button>
-            </div>
-            {isConnected && (
-              <button className="btn-secondary w-full text-danger" onClick={disconnectGist}>
-                Disconnect
-              </button>
-            )}
-          </div>
-        )}
       </Card>
     </div>
   );

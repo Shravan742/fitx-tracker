@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { getActiveProfileId } from '../lib/storage';
-import { addSleepLog, getSleepLogs } from '../lib/db';
+import { addSleepLog, getSleepLogs } from '../lib/firestoreDb';
 import type { SleepLog } from '../types';
 import Card from '../components/Card';
 import SleepChart from '../components/SleepChart';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import exercises from '../data/exercises';
-import { addSession, getSessionForDate, updateSession } from '../lib/db';
+import { addSession, getSessionForDate, updateSession } from '../lib/firestoreDb';
 import type { WorkoutSet } from '../types';
 
 interface DraftEntry extends WorkoutSet {

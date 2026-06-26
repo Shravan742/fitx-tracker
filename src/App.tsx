@@ -1,10 +1,13 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ProfileProvider, useProfile } from './lib/ProfileContext';
 import Header from './components/Header';
 import Nav from './components/Nav';
 import Onboarding from './views/Onboarding';
+import Login from './views/Login';
+import Signup from './views/Signup';
 
 const Dashboard = lazy(() => import('./views/Dashboard'));
 const Workout = lazy(() => import('./views/Workout'));
@@ -43,6 +46,29 @@ function AnimatedRoutes() {
   );
 }
 
+function AuthGate() {
+  const { user, authLoading } = useAuth();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+
+  if (authLoading) {
+    return <div className="flex h-dvh items-center justify-center text-text-muted">Loading…</div>;
+  }
+
+  if (!user) {
+    return mode === 'login' ? (
+      <Login onSwitchToSignup={() => setMode('signup')} />
+    ) : (
+      <Signup onSwitchToLogin={() => setMode('login')} />
+    );
+  }
+
+  return (
+    <ProfileProvider>
+      <Shell />
+    </ProfileProvider>
+  );
+}
+
 function Shell() {
   const { profile, loading } = useProfile();
 
@@ -67,10 +93,10 @@ function Shell() {
 
 export default function App() {
   return (
-    <ProfileProvider>
+    <AuthProvider>
       <HashRouter>
-        <Shell />
+        <AuthGate />
       </HashRouter>
-    </ProfileProvider>
+    </AuthProvider>
   );
 }

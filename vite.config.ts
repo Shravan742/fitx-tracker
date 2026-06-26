@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/fitx-tracker/' : '/',
+export default defineConfig(() => ({
+  // Firebase Hosting serves from the domain root, unlike GitHub Pages' repo subpath.
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),

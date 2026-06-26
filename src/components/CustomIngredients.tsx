@@ -9,7 +9,7 @@ import {
   macrosForGrams,
   type CustomIngredient,
 } from '../lib/customIngredients';
-import { addMeal } from '../lib/db';
+import { addMeal } from '../lib/firestoreDb';
 import Card from './Card';
 import { StaggerList, StaggerItem } from './motion';
 

@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { Exercise } from '../types';
 import { getActiveProfileId } from '../lib/storage';
-import { logExerciseToTodaysSession } from '../lib/db';
+import { logExerciseToTodaysSession } from '../lib/firestoreDb';
 import { getSuggestion, type Suggestion } from '../lib/orm';
 import ExerciseDemoLoop from './ExerciseDemoLoop';
 import BodyMap from './BodyMap';

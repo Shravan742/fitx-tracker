@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { openDb, get1RMHistory as dbGet1RM, save1RM as dbSave1RM } from './db';
+import { getSessions, get1RMHistory as dbGet1RM, save1RM as dbSave1RM } from './firestoreDb';
 
 export function epley(weight: number, reps: number): number {
   if (reps === 1) return weight;
@@ -73,10 +73,9 @@ export async function getSuggestion(profileId: string, lift: string): Promise<Su
     };
   }
 
-  const db = await openDb();
-  const allSessions = await db.getAllFromIndex('sessions', 'by-profile-date');
+  const allSessions = await getSessions(profileId);
   const liftSessions = allSessions
-    .filter((s) => s.profileId === profileId && s.entries?.some((e: { exercise: string }) => e.exercise === lift))
+    .filter((s) => s.entries?.some((e: { exercise: string }) => e.exercise === lift))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 2);
 
@@ -84,17 +83,16 @@ export async function getSuggestion(profileId: string, lift: string): Promise<Su
     return { type: 'start', message: 'No history yet — log your first session!' };
   }
 
-  const last = liftSessions[0].entries.find((e: { exercise: string }) => e.exercise === lift);
-  const prev = liftSessions[1]?.entries?.find((e: { exercise: string }) => e.exercise === lift);
+  const last = liftSessions[0].entries.find((e) => e.exercise === lift);
+  const prev = liftSessions[1]?.entries?.find((e) => e.exercise === lift);
+  if (!last) return { type: 'start', message: 'No history yet — log your first session!' };
 
-  const hitTarget = (entry: { repsCompleted?: number; repsTarget?: number } | undefined) =>
-    !!entry && (entry.repsCompleted ?? 0) >= (entry.repsTarget ?? 0);
-
-  if (liftSessions.length === 2 && hitTarget(last) && hitTarget(prev)) {
-    return { type: 'increase', weight: (last.weight || 0) + 2.5, sets: last.sets, reps: last.repsTarget };
-  } else if (last && !hitTarget(last)) {
-    return { type: 'hold', weight: last.weight, sets: last.sets, reps: last.repsTarget };
+  // No "did you hit your target reps" tracking exists on a logged set — repeating the
+  // exact same weight/reps two sessions running is the closest available signal that
+  // it's time to add weight; otherwise just show what was last logged.
+  if (prev && prev.weight === last.weight && prev.reps === last.reps) {
+    return { type: 'increase', weight: (last.weight || 0) + 2.5, sets: last.sets, reps: last.reps };
   }
 
-  return { type: 'same', weight: last?.weight, sets: last?.sets, reps: last?.repsTarget };
+  return { type: 'same', weight: last.weight, sets: last.sets, reps: last.reps };
 }

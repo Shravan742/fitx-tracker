@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { useProfile } from '../lib/ProfileContext';
+import { useAuth } from '../lib/AuthContext';
+import { usePartner } from '../lib/usePartner';
 import { calcMacros, applyDietProteinModifier } from '../lib/macros';
 import { getActiveProfileId } from '../lib/storage';
-import { addMeal, deleteMeal, getMealsForDate, getProfile } from '../lib/db';
+import { addMeal, deleteMeal, getMealsForDate } from '../lib/firestoreDb';
 import recipes from '../data/recipes';
-import type { Diet, MealLog, PlanEntry, Profile } from '../types';
+import type { Diet, MealLog, PlanEntry } from '../types';
 import {
   MEAL_SLOTS,
   loadPlan,
@@ -16,7 +18,6 @@ import {
   type MacroSurplus,
 } from '../lib/mealPlan';
 import {
-  HOUSEHOLD_MEMBER_IDS,
   computeHouseholdMacros,
   getHouseholdDietPreferences,
   setHouseholdDietPreferences,
@@ -45,9 +46,12 @@ const DIET_LABELS: Record<Diet, { label: string; icon: string }> = {
 
 export default function Meals() {
   const { profile, saveProfile } = useProfile();
+  const { user } = useAuth();
   const pid = getActiveProfileId();
   const today = dayjs().format('YYYY-MM-DD');
-  const partnerId = HOUSEHOLD_MEMBER_IDS.find((id) => id !== pid) ?? HOUSEHOLD_MEMBER_IDS[1];
+  // Partner linking is invite-based (see lib/invites.ts) — until your partner has
+  // accepted an invite, partnerUid is null and household mode stays hidden.
+  const { partnerUid: partnerId, partnerProfile } = usePartner(user?.uid, user?.email ?? undefined);
 
   const [tab, setTab] = useState<'today' | 'week'>('today');
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
@@ -63,12 +67,11 @@ export default function Meals() {
     setHouseholdModeOn(on);
     setHouseholdModeState(on);
   };
-  const [partnerProfile, setPartnerProfile] = useState<Profile | null>(null);
   const [householdBudgetInput, setHouseholdBudgetInput] = useState('');
   const [householdDiets, setHouseholdDiets] = useState<Diet[]>(getHouseholdDietPreferences());
 
   useEffect(() => {
-    getProfile(partnerId).then((p) => setPartnerProfile(p ?? null));
+    if (!partnerId) setHouseholdMode(false);
   }, [partnerId]);
 
   const householdMacros = useMemo(
@@ -96,7 +99,7 @@ export default function Meals() {
     (async () => {
       const meals = await getMealsForDate(pid, today);
       setTodayMeals(meals);
-      if (householdMode) {
+      if (householdMode && partnerId) {
         setPartnerMeals(await getMealsForDate(partnerId, today));
       } else {
         setPartnerMeals([]);
@@ -191,7 +194,7 @@ export default function Meals() {
     const r = recipes[p.recipeIdx];
     if (!r) return;
 
-    if (householdMode && householdMacros) {
+    if (householdMode && householdMacros && partnerId) {
       // Log each person's own share to their own meal log, not the combined total.
       const slot = MEAL_SLOTS[slotIdx];
       const [memberA, memberB] = householdMacros.members;
@@ -233,7 +236,7 @@ export default function Meals() {
     setTodayMeals(await getMealsForDate(pid, today));
   };
 
-  const handleDeleteMeal = async (id?: number) => {
+  const handleDeleteMeal = async (id?: string) => {
     if (id == null) return;
     await deleteMeal(id);
     setTodayMeals(await getMealsForDate(pid, today));

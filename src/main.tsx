@@ -3,10 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
-import { initAutoSync } from './lib/sync'
 
 registerSW({ immediate: true })
-initAutoSync()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

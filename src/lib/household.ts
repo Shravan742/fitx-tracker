@@ -18,10 +18,6 @@ export function setHouseholdModeOn(on: boolean): void {
   localStorage.setItem(HOUSEHOLD_MODE_KEY, on ? '1' : '0');
 }
 
-// The app's profile switcher only ever toggles between these two fixed IDs,
-// so a "household" is always this pair — no partner-linking UI needed.
-export const HOUSEHOLD_MEMBER_IDS = ['user1', 'user2'] as const;
-
 export function getHouseholdDietPreferences(): Diet[] {
   try {
     return JSON.parse(localStorage.getItem(HOUSEHOLD_DIET_KEY) || '[]');
