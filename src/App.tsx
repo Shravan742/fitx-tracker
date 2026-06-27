@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { ProfileProvider, useProfile } from './lib/ProfileContext';
 import { loadRecipes } from './lib/recipesCache';
+import { loadCommunityPrices, setPreferredSupermarket } from './lib/communityPrices';
 import Header from './components/Header';
 import Nav from './components/Nav';
 import Onboarding from './views/Onboarding';
@@ -72,13 +73,17 @@ function AuthGate() {
 
 function Shell() {
   const { profile, loading } = useProfile();
-  const [recipesLoading, setRecipesLoading] = useState(true);
+  const [referenceDataLoading, setReferenceDataLoading] = useState(true);
 
   useEffect(() => {
-    loadRecipes().finally(() => setRecipesLoading(false));
+    Promise.all([loadRecipes(), loadCommunityPrices()]).finally(() => setReferenceDataLoading(false));
   }, []);
 
-  if (loading || recipesLoading) {
+  useEffect(() => {
+    setPreferredSupermarket(profile?.preferredSupermarket);
+  }, [profile?.preferredSupermarket]);
+
+  if (loading || referenceDataLoading) {
     return <div className="flex h-dvh items-center justify-center text-text-muted">Loading…</div>;
   }
 

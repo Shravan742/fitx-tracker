@@ -192,6 +192,19 @@ export default function Profile() {
               onChange={(e) => setForm({ ...form, weeklyBudget: +e.target.value })}
             />
           </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-text-muted">Preferred supermarket</span>
+            <input
+              className="input"
+              placeholder="e.g. Aldi, Lidl, Rewe"
+              value={form.preferredSupermarket ?? ''}
+              onChange={(e) => setForm({ ...form, preferredSupermarket: e.target.value })}
+            />
+            <span className="mt-1 block text-[0.7rem] text-text-muted">
+              When community prices exist for a product at this store, your shopping list and budget will use that
+              price instead of the generic estimate.
+            </span>
+          </label>
           <button className="btn-primary w-full disabled:cursor-not-allowed" onClick={handleSave} disabled={saving}>
             {saving ? <ButtonSpinner light /> : 'Save changes'}
           </button>

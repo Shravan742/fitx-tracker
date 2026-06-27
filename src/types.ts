@@ -26,7 +26,22 @@ export interface Profile {
   restDays: Weekday[];
   weeklyBudget: number;
   household?: HouseholdSettings;
+  preferredSupermarket?: string;
   updatedAt?: string;
+}
+
+export interface CommunityPrice {
+  id: string;
+  item: string;
+  itemSlug: string;
+  supermarket: string;
+  price: number;
+  quantity: number;
+  unit: 'g' | 'ml' | 'piece';
+  gramsPerPiece?: number;
+  pricePer100: number;
+  updatedBy: string;
+  updatedAt: string;
 }
 
 export interface Macros {

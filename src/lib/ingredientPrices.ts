@@ -7,6 +7,7 @@
 // categories, and premium ingredients (salmon, halloumi, nuts) are priced accurately.
 
 import { findCustomIngredientByName } from './customIngredients';
+import { getCommunityPricePer100 } from './communityPrices';
 
 interface PriceEntry {
   keywords: string[];
@@ -84,6 +85,9 @@ const DEFAULT_PRICE_PER_100 = 0.5;
 function priceForIngredient(name: string): number {
   const custom = findCustomIngredientByName(name);
   if (custom?.pricePer100 != null) return custom.pricePer100;
+
+  const community = getCommunityPricePer100(name);
+  if (community != null) return community;
 
   const lower = name.toLowerCase();
   for (const entry of PRICE_TABLE) {

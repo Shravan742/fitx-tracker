@@ -6,3 +6,4 @@ dist-ssr
 .firebase
 service-account.json
 *-service-account.json
+graphify-out/

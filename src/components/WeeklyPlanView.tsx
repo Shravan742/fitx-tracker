@@ -8,6 +8,7 @@ import { getActiveProfileId } from '../lib/storage';
 import { getShoppingChecklist, toggleShoppingItem } from '../lib/firestoreDb';
 import { splitServings } from '../lib/household';
 import Card from './Card';
+import PriceEditor from './PriceEditor';
 import { ProgressBar, AnimatedNumber, StaggerList, StaggerItem } from './motion';
 import { motion } from 'framer-motion';
 
@@ -39,8 +40,12 @@ export default function WeeklyPlanView({
   const [weekPlan, setWeekPlan] = useState<DayPlan[]>([]);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
+  const refreshPlan = () => {
     setWeekPlan(loadWeeklyPlanCached(pid, today, diets, targets, weeklyBudget));
+  };
+
+  useEffect(() => {
+    refreshPlan();
     getShoppingChecklist(myUid, today).then(setChecklist);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pid, myUid, today, JSON.stringify(diets), targets.calories, weeklyBudget]);
@@ -207,32 +212,34 @@ export default function WeeklyPlanView({
           {sortedItems.map((item) => {
             const bought = !!checklist[item.item];
             return (
-              <motion.button
-                key={item.item}
-                onClick={() => handleToggleItem(item.item)}
-                whileTap={{ scale: 0.98 }}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
-                  bought ? 'opacity-40' : 'hover:bg-surface2'
-                }`}
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <motion.span
-                    className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 text-xs ${
-                      bought ? 'border-success bg-success text-white' : 'border-border'
-                    }`}
-                    initial={false}
-                    animate={bought ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    {bought ? '✓' : ''}
-                  </motion.span>
-                  <span className={`truncate ${bought ? 'line-through text-text-muted' : ''}`}>{item.item}</span>
-                </span>
-                <span className={`whitespace-nowrap font-medium ${bought ? 'text-text-muted' : ''}`}>
-                  {item.grams > 0 ? `${item.grams}g` : ''}
-                  {item.ml > 0 ? `${item.ml}ml` : ''}
-                </span>
-              </motion.button>
+              <div key={item.item} className={`rounded-lg px-2 py-2 transition-colors ${bought ? 'opacity-40' : 'hover:bg-surface2'}`}>
+                <motion.button
+                  onClick={() => handleToggleItem(item.item)}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex w-full items-center justify-between gap-3 text-left text-sm"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <motion.span
+                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 text-xs ${
+                        bought ? 'border-success bg-success text-white' : 'border-border'
+                      }`}
+                      initial={false}
+                      animate={bought ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      {bought ? '✓' : ''}
+                    </motion.span>
+                    <span className={`truncate ${bought ? 'line-through text-text-muted' : ''}`}>{item.item}</span>
+                  </span>
+                  <span className={`whitespace-nowrap font-medium ${bought ? 'text-text-muted' : ''}`}>
+                    {item.grams > 0 ? `${item.grams}g` : ''}
+                    {item.ml > 0 ? `${item.ml}ml` : ''}
+                  </span>
+                </motion.button>
+                <div className="pl-7">
+                  <PriceEditor item={item.item} uid={myUid} onSaved={refreshPlan} />
+                </div>
+              </div>
             );
           })}
         </div>
